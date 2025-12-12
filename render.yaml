@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: lolqa
+    env: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: LANGSMITH_API_KEY
+        sync: false
+      - key: LANGSMITH_PROJECT
+        value: lolqa
+      - key: LANGSMITH_ENDPOINT
+        value: https://api.smith.langchain.com
+    healthCheckPath: /
+    autoDeploy: true
+

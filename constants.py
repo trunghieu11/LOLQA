@@ -1,0 +1,61 @@
+"""
+Constants used throughout the application.
+Centralizes magic numbers and strings for easier maintenance.
+"""
+
+# Prompt Templates
+DEFAULT_PROMPT_TEMPLATE = """You are a helpful assistant specialized in League of Legends game knowledge.
+Use the following pieces of context about League of Legends to answer the question.
+If you don't know the answer based on the context, say that you don't know, but try to provide helpful information.
+
+Context: {context}
+
+Question: {question}
+
+Provide a detailed and helpful answer about League of Legends:"""
+
+# Error Messages
+ERROR_RAG_NOT_INITIALIZED = "RAG system not initialized. Call initialize() first."
+ERROR_MISSING_API_KEY = "⚠️ Please set your OPENAI_API_KEY in the .env file"
+ERROR_INITIALIZATION = "Error initializing systems: {error}"
+ERROR_QUERY_PROCESSING = "Sorry, I encountered an error: {error}"
+
+# UI Messages
+APP_DESCRIPTION = "Ask me anything about League of Legends champions, abilities, strategies, and more!"
+SIDEBAR_ABOUT = """
+This application uses:
+- **LangChain** for RAG and LLM integration
+- **LangGraph** for workflow orchestration
+- **LangSmith** for monitoring and tracing
+
+Ask questions about:
+- Champion abilities and playstyles
+- Game mechanics
+- Item builds
+- Ranked system
+"""
+
+# Example Questions
+EXAMPLE_QUESTIONS = [
+    "What are Ahri's abilities?",
+    "How should I play Yasuo?",
+    "What is the role of a support champion?",
+    "Tell me about teamfighting in League of Legends",
+    "What items should I build on Jinx?"
+]
+
+# Vector Store Messages
+MSG_LOADING_VECTOR_STORE = "Loading existing vector store..."
+MSG_CREATING_VECTOR_STORE = "Creating new vector store..."
+MSG_VECTOR_STORE_CREATED = "Created vector store with {count} document chunks"
+
+# LangGraph Node Names
+NODE_EXTRACT_QUESTION = "extract_question"
+NODE_RETRIEVE_CONTEXT = "retrieve_context"
+NODE_GENERATE_ANSWER = "generate_answer"
+NODE_FORMAT_RESPONSE = "format_response"
+
+# Streamlit Session State Keys
+SESSION_MESSAGES = "messages"
+SESSION_USER_QUESTION = "user_question"
+
