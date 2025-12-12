@@ -47,24 +47,17 @@ The application will be available at `http://localhost:8501`
 
 ## 🏗️ Project Structure
 
-The project has been reorganized for better maintainability:
-
 ```
 .
-├── app_new.py            # Main Streamlit application (NEW organized structure)
-├── src/                  # Source code (organized by function)
-│   ├── core/            # Core RAG and workflow logic
-│   ├── data/            # Data collection and sources
-│   ├── config/          # Configuration and constants
-│   └── utils/           # Utility functions
-├── docs/                 # All documentation
-├── deployment/           # Docker and cloud configs
-├── scripts/              # Setup and utility scripts
-├── tests/                # Test suite
-└── requirements.txt      # Python dependencies
+├── app.py                 # Main Streamlit application
+├── rag_system.py          # RAG system with vector store and retrieval
+├── langgraph_workflow.py  # LangGraph workflow orchestration
+├── data_collector.py      # Data collection and preparation
+├── requirements.txt       # Python dependencies
+├── Dockerfile            # Docker configuration
+├── Procfile              # For cloud deployment
+└── README.md             # This file
 ```
-
-📖 **For detailed structure**: See [docs/PROJECT_STRUCTURE.md](docs/PROJECT_STRUCTURE.md)
 
 ## 🐳 Docker Deployment
 
