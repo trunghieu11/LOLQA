@@ -65,6 +65,37 @@ def setup_page():
     )
 
 
+def format_conversation_for_copy(messages: list) -> str:
+    """
+    Format conversation history as a readable string for copying.
+    
+    Args:
+        messages: List of message dicts with 'role' and 'content'
+        
+    Returns:
+        Formatted string representation of the conversation
+    """
+    if not messages:
+        return "No conversation history yet."
+    
+    lines = []
+    lines.append("=" * 60)
+    lines.append("CONVERSATION HISTORY")
+    lines.append("=" * 60)
+    lines.append("")
+    
+    for i, message in enumerate(messages, 1):
+        role = message.get("role", "unknown").upper()
+        content = message.get("content", "")
+        
+        lines.append(f"[{i}] {role}:")
+        lines.append(content)
+        lines.append("")
+    
+    lines.append("=" * 60)
+    return "\n".join(lines)
+
+
 def render_sidebar():
     """Render the sidebar with about info and example questions"""
     with st.sidebar:
@@ -75,6 +106,24 @@ def render_sidebar():
         for i, q in enumerate(EXAMPLE_QUESTIONS):
             if st.button(f"💬 {q}", key=f"example_{i}", use_container_width=True):
                 st.session_state[SESSION_USER_QUESTION] = q
+        
+        # Debug section for copying conversation
+        st.divider()
+        with st.expander("🐛 Debug Tools", expanded=False):
+            st.markdown("**Copy Conversation History**")
+            
+            messages = st.session_state.get(SESSION_MESSAGES, [])
+            if messages:
+                formatted_conversation = format_conversation_for_copy(messages)
+                
+                # Display in a code block for easy copying
+                st.code(formatted_conversation, language="text")
+                
+                # Button to show copy instructions
+                if st.button("📋 Copy Instructions", use_container_width=True):
+                    st.info("💡 Select the text above and press Ctrl+C (Cmd+C on Mac) to copy")
+            else:
+                st.info("No conversation history to copy yet.")
 
 
 def render_chat_history():
