@@ -3,6 +3,7 @@ Data Dragon Collector - Fetches static League of Legends data.
 Data Dragon is Riot's static data API (no API key required).
 """
 import requests
+import re
 from typing import List, Dict, Optional
 from langchain_core.documents import Document
 from data_sources.base_collector import BaseDataCollector
@@ -46,6 +47,7 @@ class DataDragonCollector(BaseDataCollector):
     def collect(self) -> List[Document]:
         """
         Collect champion data from Data Dragon.
+        Fetches both summary data and detailed individual champion files (which include skins).
         
         Returns:
             List of Document objects
@@ -53,7 +55,7 @@ class DataDragonCollector(BaseDataCollector):
         documents = []
         
         try:
-            # Fetch champion data
+            # Fetch champion summary data
             champ_url = f"{self.base_url}/cdn/{self.version}/data/{self.language}/champion.json"
             logger.info(f"Fetching champion data from {champ_url}")
             
@@ -64,9 +66,25 @@ class DataDragonCollector(BaseDataCollector):
             champions = data.get("data", {})
             logger.info(f"Found {len(champions)} champions")
             
+            # Fetch detailed data for each champion (includes skins)
             for champ_id, champ_data in champions.items():
-                doc = self._champion_to_document(champ_data)
-                documents.append(doc)
+                try:
+                    # Fetch individual champion file for detailed info including skins
+                    detailed_url = f"{self.base_url}/cdn/{self.version}/data/{self.language}/champion/{champ_id}.json"
+                    detailed_response = requests.get(detailed_url, timeout=10)
+                    if detailed_response.status_code == 200:
+                        detailed_data = detailed_response.json()
+                        champ_detailed = detailed_data.get("data", {}).get(champ_id, champ_data)
+                        doc = self._champion_to_document(champ_detailed)
+                    else:
+                        # Fallback to summary data if detailed fetch fails
+                        doc = self._champion_to_document(champ_data)
+                    documents.append(doc)
+                except Exception as e:
+                    logger.warning(f"Could not fetch detailed data for {champ_id}, using summary: {e}")
+                    # Fallback to summary data
+                    doc = self._champion_to_document(champ_data)
+                    documents.append(doc)
             
             logger.info(f"Successfully collected {len(documents)} champion documents")
             
@@ -108,6 +126,19 @@ class DataDragonCollector(BaseDataCollector):
         passive_description = passive.get("description", "")
         passive_description = re.sub(r'<[^>]+>', '', passive_description)
         
+        # Get skins information
+        skins = champ_data.get("skins", [])
+        skins_text = ""
+        if skins:
+            skins_text = f"\nSkins ({len(skins)} total):\n"
+            for skin in skins:
+                skin_name = skin.get("name", "")
+                skin_num = skin.get("num", 0)
+                if skin_num == 0:
+                    skins_text += f"- {skin_name} (Default)\n"
+                else:
+                    skins_text += f"- {skin_name}\n"
+        
         content = f"""
 Champion: {name}
 Title: {title}
@@ -120,7 +151,7 @@ Passive Ability: {passive_name}
 
 Abilities:
 {abilities_text}
-
+{skins_text}
 Lore: {champ_data.get("lore", "No lore available")}
 """
         
