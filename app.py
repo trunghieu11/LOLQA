@@ -110,19 +110,6 @@ def render_chat_history():
     if SESSION_MESSAGES not in st.session_state:
         st.session_state[SESSION_MESSAGES] = []
     
-    # Show copy button if there are messages
-    if st.session_state[SESSION_MESSAGES]:
-        col1, col2 = st.columns([5, 1])
-        with col2:
-            if st.button("📋 Copy", use_container_width=True, key="copy_btn"):
-                st.session_state["show_copy"] = not st.session_state.get("show_copy", False)
-        
-        # Show formatted conversation if toggled
-        if st.session_state.get("show_copy", False):
-            formatted = format_conversation_for_copy(st.session_state[SESSION_MESSAGES])
-            st.code(formatted, language="text")
-            st.caption("Select all text above (Ctrl+A / Cmd+A) and copy (Ctrl+C / Cmd+C)")
-    
     for message in st.session_state[SESSION_MESSAGES]:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
@@ -192,6 +179,20 @@ def main():
     # Header
     st.title(f"{config.app.page_icon} {config.app.page_title}")
     st.markdown(APP_DESCRIPTION)
+    
+    # Copy button - place it prominently at the top
+    if SESSION_MESSAGES in st.session_state and st.session_state[SESSION_MESSAGES]:
+        col1, col2, col3 = st.columns([4, 1, 1])
+        with col3:
+            if st.button("📋 Copy Chat", use_container_width=True, key="copy_btn"):
+                st.session_state["show_copy"] = not st.session_state.get("show_copy", False)
+        
+        # Show formatted conversation if toggled
+        if st.session_state.get("show_copy", False):
+            with st.expander("📋 Conversation Copy", expanded=True):
+                formatted = format_conversation_for_copy(st.session_state[SESSION_MESSAGES])
+                st.code(formatted, language="text")
+                st.caption("👆 Select all text above and copy (Ctrl+A / Cmd+A, then Ctrl+C / Cmd+C)")
     
     # Sidebar
     render_sidebar()
