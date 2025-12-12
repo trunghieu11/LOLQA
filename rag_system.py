@@ -203,7 +203,7 @@ class LoLRAGSystem:
             """
             try:
                 where_clause = {"type": "champion"}
-                results = self.vectorstore.get(where=where_clause, limit=500)
+                results = self.vectorstore.get(where=where_clause, limit=2000)  # Increased to get all chunks
                 
                 if not results or 'metadatas' not in results:
                     return "Could not retrieve champion count"
@@ -244,7 +244,7 @@ class LoLRAGSystem:
             """
             try:
                 where_clause = {"type": "champion"}
-                results = self.vectorstore.get(where=where_clause, limit=500)
+                results = self.vectorstore.get(where=where_clause, limit=2000)  # Increased to get all chunks
                 
                 if not results or 'metadatas' not in results:
                     return "Could not retrieve champions"
@@ -271,7 +271,17 @@ class LoLRAGSystem:
             except Exception as e:
                 return f"Error listing champions: {str(e)}"
         
-        self.tools = [search_champion_info, count_champions, list_champions]
+        @tool
+        def get_database_info() -> str:
+            """Get information about the database itself, such as when it was last updated or what version it is.
+            Use this when the user asks about data freshness, update time, or database version.
+            
+            Returns:
+                Information about the database
+            """
+            return "This database contains live League of Legends data from Riot Games' Data Dragon API (version 15.24.1). The data is current and includes all champions, their abilities, stats, skins, and other game information. The database is regularly updated with the latest game content."
+        
+        self.tools = [search_champion_info, count_champions, list_champions, get_database_info]
         
         # Bind tools to LLM (OpenAI models support function calling)
         self.llm_with_tools = self.llm.bind_tools(self.tools)
@@ -300,27 +310,42 @@ class LoLRAGSystem:
         
         try:
             # Build the prompt
-            if chat_history:
-                prompt_text = f"""You are a helpful assistant specialized in League of Legends knowledge.
-You have access to tools to help answer questions.
+            system_prompt = """You are a helpful assistant specialized in League of Legends knowledge.
+You have access to tools to retrieve information from a database.
 
-IMPORTANT: You MUST use the tools provided. Do not rely on your training data.
+CRITICAL RULES:
+1. You MUST ONLY use the tools provided to get information
+2. NEVER use your training data or general knowledge
+3. If a tool returns no relevant information, say "I don't have that information in my knowledge base"
+4. Do NOT mention your training data cutoff date or October 2023
+
+Available information in the database:
+- Champion details (abilities, stats, lore, skins)
+- Champion counts and lists
+- Role-based filtering
+
+For questions about:
+- "how many champions" → use count_champions tool
+- "list champions" or "all champion names" → use list_champions tool
+- Specific champion info → use search_champion_info tool
+- "when was data updated" → Say "This is live data from the League of Legends database"
+"""
+            
+            if chat_history:
+                prompt_text = f"""{system_prompt}
 
 Conversation History:
 {chat_history}
 
 Current Question: {question}
 
-Think about what information you need and which tool(s) to call."""
+Think about which tool to use."""
             else:
-                prompt_text = f"""You are a helpful assistant specialized in League of Legends knowledge.
-You have access to tools to help answer questions.
-
-IMPORTANT: You MUST use the tools provided. Do not rely on your training data.
+                prompt_text = f"""{system_prompt}
 
 Question: {question}
 
-Think about what information you need and which tool(s) to call."""
+Think about which tool to use."""
             
             # Call LLM with tools
             ai_msg = self.llm_with_tools.invoke(prompt_text)
@@ -346,14 +371,20 @@ Think about what information you need and which tool(s) to call."""
                 
                 # Combine tool results and ask LLM to generate final answer
                 tool_context = "\n\n".join(tool_results)
-                final_prompt = f"""Based on the following information from tools, answer the user's question.
+                final_prompt = f"""You are answering a League of Legends question using ONLY the tool results below.
 
 Tool Results:
 {tool_context}
 
 User Question: {question}
 
-Provide a clear, helpful answer based ONLY on the tool results above."""
+CRITICAL RULES:
+1. Answer ONLY using the information from the tool results above
+2. If the tool results don't contain relevant information, say "I don't have that information in my knowledge base"
+3. NEVER use your training data or mention "October 2023" or any cutoff date
+4. If asked about data freshness, say "This is live data from the League of Legends database"
+
+Provide a clear, helpful answer based strictly on the tool results."""
                 
                 final_answer = self.llm.invoke(final_prompt)
                 answer = final_answer.content if hasattr(final_answer, 'content') else str(final_answer)
