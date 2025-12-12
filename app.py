@@ -2,7 +2,9 @@
 Streamlit Web Application for League of Legends Q&A
 Main entry point for the application
 """
+import json
 import streamlit as st
+import streamlit.components.v1 as components
 from langsmith import traceable
 from rag_system import LoLRAGSystem
 from langgraph_workflow import LoLQAGraph
@@ -79,11 +81,6 @@ def format_conversation_for_copy(messages: list) -> str:
         return "No conversation history yet."
     
     lines = []
-    lines.append("=" * 60)
-    lines.append("CONVERSATION HISTORY")
-    lines.append("=" * 60)
-    lines.append("")
-    
     for i, message in enumerate(messages, 1):
         role = message.get("role", "unknown").upper()
         content = message.get("content", "")
@@ -92,8 +89,7 @@ def format_conversation_for_copy(messages: list) -> str:
         lines.append(content)
         lines.append("")
     
-    lines.append("=" * 60)
-    return "\n".join(lines)
+    return "\n".join(lines).strip()
 
 
 def render_sidebar():
@@ -110,18 +106,47 @@ def render_sidebar():
         # Debug section for copying conversation
         st.divider()
         with st.expander("🐛 Debug Tools", expanded=False):
-            st.markdown("**Copy Conversation History**")
+            # Initialize session state if needed
+            if SESSION_MESSAGES not in st.session_state:
+                st.session_state[SESSION_MESSAGES] = []
             
-            messages = st.session_state.get(SESSION_MESSAGES, [])
+            messages = st.session_state[SESSION_MESSAGES]
+            
+            # Debug: Show message count
+            st.caption(f"Messages in session: {len(messages)}")
+            
             if messages:
                 formatted_conversation = format_conversation_for_copy(messages)
                 
-                # Display in a code block for easy copying
-                st.code(formatted_conversation, language="text")
+                # Text area for easy copying
+                st.text_area(
+                    "Conversation",
+                    value=formatted_conversation,
+                    height=200,
+                    key="debug_conversation",
+                    label_visibility="collapsed"
+                )
                 
-                # Button to show copy instructions
-                if st.button("📋 Copy Instructions", use_container_width=True):
-                    st.info("💡 Select the text above and press Ctrl+C (Cmd+C on Mac) to copy")
+                # Copy button with JavaScript
+                if st.button("📋 Copy Conversation", use_container_width=True, key="copy_conversation"):
+                    # Use JavaScript to copy
+                    escaped_text = json.dumps(formatted_conversation)
+                    components.html(
+                        f"""
+                        <script>
+                            (function() {{
+                                const text = {escaped_text};
+                                navigator.clipboard.writeText(text).then(() => {{
+                                    alert('✅ Copied to clipboard!');
+                                }}).catch(err => {{
+                                    alert('❌ Failed to copy. Please select the text above and copy manually.');
+                                }});
+                            }})();
+                        </script>
+                        """,
+                        height=0,
+                        key=f"copy_script_{len(messages)}"
+                    )
             else:
                 st.info("No conversation history to copy yet.")
 
