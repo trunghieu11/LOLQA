@@ -103,6 +103,9 @@ def handle_user_input(graph: LoLQAGraph):
             st.warning(error_msg)
             return
         
+        # Get conversation history BEFORE adding current message (to avoid duplication)
+        conversation_history = st.session_state[SESSION_MESSAGES].copy()
+        
         # Add user message to chat
         st.session_state[SESSION_MESSAGES].append({"role": "user", "content": user_question})
         with st.chat_message("user"):
@@ -112,8 +115,7 @@ def handle_user_input(graph: LoLQAGraph):
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
                 try:
-                    # Get conversation history (all messages except the current one)
-                    conversation_history = st.session_state[SESSION_MESSAGES].copy()
+                    # Pass conversation history (doesn't include current message)
                     answer = process_query(user_question, graph, conversation_history)
                     st.markdown(answer)
                     st.session_state[SESSION_MESSAGES].append({"role": "assistant", "content": answer})
