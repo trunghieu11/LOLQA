@@ -103,58 +103,25 @@ def render_sidebar():
             if st.button(f"💬 {q}", key=f"example_{i}", use_container_width=True):
                 st.session_state[SESSION_USER_QUESTION] = q
         
-        # Debug section for copying conversation
-        st.divider()
-        with st.expander("🐛 Debug Tools", expanded=False):
-            # Initialize session state if needed
-            if SESSION_MESSAGES not in st.session_state:
-                st.session_state[SESSION_MESSAGES] = []
-            
-            messages = st.session_state[SESSION_MESSAGES]
-            
-            # Debug: Show message count
-            st.caption(f"Messages in session: {len(messages)}")
-            
-            if messages:
-                formatted_conversation = format_conversation_for_copy(messages)
-                
-                # Text area for easy copying
-                st.text_area(
-                    "Conversation",
-                    value=formatted_conversation,
-                    height=200,
-                    key="debug_conversation",
-                    label_visibility="collapsed"
-                )
-                
-                # Copy button with JavaScript
-                if st.button("📋 Copy Conversation", use_container_width=True, key="copy_conversation"):
-                    # Use JavaScript to copy
-                    escaped_text = json.dumps(formatted_conversation)
-                    components.html(
-                        f"""
-                        <script>
-                            (function() {{
-                                const text = {escaped_text};
-                                navigator.clipboard.writeText(text).then(() => {{
-                                    alert('✅ Copied to clipboard!');
-                                }}).catch(err => {{
-                                    alert('❌ Failed to copy. Please select the text above and copy manually.');
-                                }});
-                            }})();
-                        </script>
-                        """,
-                        height=0,
-                        key=f"copy_script_{len(messages)}"
-                    )
-            else:
-                st.info("No conversation history to copy yet.")
 
 
 def render_chat_history():
     """Render the chat history"""
     if SESSION_MESSAGES not in st.session_state:
         st.session_state[SESSION_MESSAGES] = []
+    
+    # Show copy button if there are messages
+    if st.session_state[SESSION_MESSAGES]:
+        col1, col2 = st.columns([5, 1])
+        with col2:
+            if st.button("📋 Copy", use_container_width=True, key="copy_btn"):
+                st.session_state["show_copy"] = not st.session_state.get("show_copy", False)
+        
+        # Show formatted conversation if toggled
+        if st.session_state.get("show_copy", False):
+            formatted = format_conversation_for_copy(st.session_state[SESSION_MESSAGES])
+            st.code(formatted, language="text")
+            st.caption("Select all text above (Ctrl+A / Cmd+A) and copy (Ctrl+C / Cmd+C)")
     
     for message in st.session_state[SESSION_MESSAGES]:
         with st.chat_message(message["role"]):
