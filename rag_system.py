@@ -11,8 +11,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough, RunnableLambda
 from langchain_core.output_parsers import StrOutputParser
-from langchain.chains.query_constructor.base import AttributeInfo
-from langchain.retrievers.self_query.base import SelfQueryRetriever
+from langchain_core.tools import tool
 from data_collector import LoLDataCollector
 from config import config
 from constants import (
@@ -44,6 +43,8 @@ class LoLRAGSystem:
         self.llm: Optional[ChatOpenAI] = None
         self.retriever: Optional[Chroma] = None
         self.qa_chain: Optional[object] = None
+        self.llm_with_tools: Optional[object] = None
+        self.tools: Optional[list] = None
         
     def initialize(self):
         """Initialize the RAG system with embeddings and vector store"""
@@ -82,6 +83,9 @@ class LoLRAGSystem:
             # Create QA chain with history support
             self._create_qa_chain_with_history()
             
+            # Create LLM with tools
+            self._create_llm_with_tools()
+            
             logger.info("RAG system initialized successfully")
             
         except Exception as e:
@@ -117,53 +121,12 @@ class LoLRAGSystem:
         logger.info(MSG_VECTOR_STORE_CREATED.format(count=len(splits)))
     
     def _create_retriever(self):
-        """Create self-querying retriever from vector store"""
-        # Define metadata field information for self-querying
-        metadata_field_info = [
-            AttributeInfo(
-                name="type",
-                description="The type of document: 'champion' for champion information, 'item' for items, 'lore' for lore/story",
-                type="string",
-            ),
-            AttributeInfo(
-                name="champion",
-                description="The name of the League of Legends champion (only for champion documents)",
-                type="string",
-            ),
-            AttributeInfo(
-                name="role",
-                description="The champion's role(s), e.g., 'Fighter', 'Mage', 'Assassin', 'Tank', 'Support', 'Marksman' (only for champion documents)",
-                type="string",
-            ),
-            AttributeInfo(
-                name="source",
-                description="The data source: 'data_dragon', 'sample', 'web_scraper', etc.",
-                type="string",
-            ),
-        ]
-        
-        # Document content description for the self-querying retriever
-        document_content_description = "League of Legends game information including champion abilities, stats, lore, items, and gameplay mechanics"
-        
-        # Create self-querying retriever
-        try:
-            self.retriever = SelfQueryRetriever.from_llm(
-                llm=self.llm,
-                vectorstore=self.vectorstore,
-                document_contents=document_content_description,
-                metadata_field_info=metadata_field_info,
-                search_kwargs={"k": config.rag.retrieval_k},
-                verbose=True,  # Enable logging to see the generated queries
-            )
-            logger.info(f"Self-querying retriever created with k={config.rag.retrieval_k}")
-        except Exception as e:
-            # Fallback to regular retriever if self-querying fails
-            logger.warning(f"Failed to create self-querying retriever, falling back to regular retriever: {e}")
-            self.retriever = self.vectorstore.as_retriever(
-                search_type="similarity",
-                search_kwargs={"k": config.rag.retrieval_k}
-            )
-            logger.info(f"Regular retriever created as fallback with k={config.rag.retrieval_k}")
+        """Create retriever from vector store with intelligent query handling"""
+        self.retriever = self.vectorstore.as_retriever(
+            search_type="similarity",
+            search_kwargs={"k": config.rag.retrieval_k}
+        )
+        logger.info(f"Retriever created with k={config.rag.retrieval_k}")
     
     def _create_qa_chain(self):
         """Create the QA chain"""
@@ -205,10 +168,120 @@ class LoLRAGSystem:
             | StrOutputParser()
         )
         logger.info("QA chain with history created")
+    
+    def _create_llm_with_tools(self):
+        """Create LLM with tool calling capability"""
+        # Define tools for the LLM
         
+        @tool
+        def search_champion_info(query: str) -> str:
+            """Search for specific information about League of Legends champions, abilities, or gameplay.
+            Use this when the user asks about specific champions, abilities, strategies, or detailed information.
+            
+            Args:
+                query: The search query about champions or gameplay
+                
+            Returns:
+                Relevant information from the knowledge base
+            """
+            try:
+                docs = self.retriever.invoke(query)
+                return format_documents(docs)
+            except Exception as e:
+                return f"Error searching: {str(e)}"
+        
+        @tool
+        def count_champions(role_filter: str = "") -> str:
+            """Count the total number of champions in League of Legends, optionally filtered by role.
+            Use this when the user asks 'how many champions', 'total champions', 'number of champions', etc.
+            
+            Args:
+                role_filter: Optional role filter (Fighter, Mage, Assassin, Tank, Support, Marksman, or empty string for all)
+                
+            Returns:
+                The count of champions matching the filter
+            """
+            try:
+                where_clause = {"type": "champion"}
+                results = self.vectorstore.get(where=where_clause, limit=500)
+                
+                if not results or 'metadatas' not in results:
+                    return "Could not retrieve champion count"
+                
+                # Count unique champions
+                unique_champions = set()
+                for metadata in results['metadatas']:
+                    if metadata and 'champion' in metadata:
+                        champion_name = metadata['champion']
+                        champion_role = metadata.get('role', '')
+                        
+                        # Apply role filter if specified
+                        if role_filter and role_filter.strip():
+                            if role_filter.lower() in champion_role.lower():
+                                unique_champions.add(champion_name)
+                        else:
+                            unique_champions.add(champion_name)
+                
+                count = len(unique_champions)
+                if role_filter and role_filter.strip():
+                    return f"There are {count} {role_filter} champions in League of Legends."
+                else:
+                    return f"There are {count} champions in League of Legends."
+            except Exception as e:
+                return f"Error counting champions: {str(e)}"
+        
+        @tool
+        def list_champions(role_filter: str = "", limit: int = 20) -> str:
+            """List champion names, optionally filtered by role.
+            Use this when the user wants to see a list of champions.
+            
+            Args:
+                role_filter: Optional role filter (empty string for all)
+                limit: Maximum number of champions to list (default 20)
+                
+            Returns:
+                List of champion names
+            """
+            try:
+                where_clause = {"type": "champion"}
+                results = self.vectorstore.get(where=where_clause, limit=500)
+                
+                if not results or 'metadatas' not in results:
+                    return "Could not retrieve champions"
+                
+                # Get unique champions
+                champions = set()
+                for metadata in results['metadatas']:
+                    if metadata and 'champion' in metadata:
+                        champion_name = metadata['champion']
+                        champion_role = metadata.get('role', '')
+                        
+                        # Apply role filter
+                        if role_filter and role_filter.strip():
+                            if role_filter.lower() in champion_role.lower():
+                                champions.add(champion_name)
+                        else:
+                            champions.add(champion_name)
+                
+                champion_list = sorted(list(champions))[:limit]
+                if role_filter and role_filter.strip():
+                    return f"{role_filter} champions: " + ", ".join(champion_list)
+                else:
+                    return "Champions: " + ", ".join(champion_list)
+            except Exception as e:
+                return f"Error listing champions: {str(e)}"
+        
+        self.tools = [search_champion_info, count_champions, list_champions]
+        
+        # Bind tools to LLM (OpenAI models support function calling)
+        self.llm_with_tools = self.llm.bind_tools(self.tools)
+        
+        logger.info("LLM with tools created")
+    
     def query(self, question: str, chat_history: Optional[str] = None) -> str:
         """
-        Query the RAG system.
+        Query the RAG system using LLM with tool calling.
+        The LLM decides which tools to use based on the question.
         
         Args:
             question: User's question
@@ -220,23 +293,81 @@ class LoLRAGSystem:
         Raises:
             ValueError: If RAG system not initialized
         """
-        if not self.qa_chain:
+        if not self.llm_with_tools:
             raise ValueError(ERROR_RAG_NOT_INITIALIZED)
         
-        logger.info(f"Processing query: {question[:50]}...")
+        logger.info(f"Processing query with LLM tools: {question[:50]}...")
+        
         try:
-            # Use chain with history if history is provided
-            if chat_history and hasattr(self, 'qa_chain_with_history'):
-                answer = self.qa_chain_with_history.invoke({
-                    "question": question,
-                    "chat_history": chat_history
-                })
+            # Build the prompt
+            if chat_history:
+                prompt_text = f"""You are a helpful assistant specialized in League of Legends knowledge.
+You have access to tools to help answer questions.
+
+IMPORTANT: You MUST use the tools provided. Do not rely on your training data.
+
+Conversation History:
+{chat_history}
+
+Current Question: {question}
+
+Think about what information you need and which tool(s) to call."""
             else:
-                answer = self.qa_chain.invoke(question)
-            logger.info("Query processed successfully")
-            return answer
+                prompt_text = f"""You are a helpful assistant specialized in League of Legends knowledge.
+You have access to tools to help answer questions.
+
+IMPORTANT: You MUST use the tools provided. Do not rely on your training data.
+
+Question: {question}
+
+Think about what information you need and which tool(s) to call."""
+            
+            # Call LLM with tools
+            ai_msg = self.llm_with_tools.invoke(prompt_text)
+            
+            # Check if the LLM wants to call any tools
+            if hasattr(ai_msg, 'tool_calls') and ai_msg.tool_calls:
+                logger.info(f"LLM requested {len(ai_msg.tool_calls)} tool calls")
+                
+                # Execute tool calls
+                tool_results = []
+                for tool_call in ai_msg.tool_calls:
+                    tool_name = tool_call['name']
+                    tool_args = tool_call['args']
+                    
+                    logger.info(f"Calling tool: {tool_name} with args: {tool_args}")
+                    
+                    # Find and execute the tool
+                    for tool in self.tools:
+                        if tool.name == tool_name:
+                            result = tool.invoke(tool_args)
+                            tool_results.append(f"{tool_name}: {result}")
+                            break
+                
+                # Combine tool results and ask LLM to generate final answer
+                tool_context = "\n\n".join(tool_results)
+                final_prompt = f"""Based on the following information from tools, answer the user's question.
+
+Tool Results:
+{tool_context}
+
+User Question: {question}
+
+Provide a clear, helpful answer based ONLY on the tool results above."""
+                
+                final_answer = self.llm.invoke(final_prompt)
+                answer = final_answer.content if hasattr(final_answer, 'content') else str(final_answer)
+                
+                logger.info("Query processed successfully with tool calls")
+                return answer
+            else:
+                # No tool calls, use the LLM's direct response
+                answer = ai_msg.content if hasattr(ai_msg, 'content') else str(ai_msg)
+                logger.info("Query processed successfully without tool calls")
+                return answer
+                
         except Exception as e:
-            logger.error(f"Error processing query: {e}", exc_info=True)
+            logger.error(f"Error processing query with LLM tools: {e}", exc_info=True)
             raise
     
     def get_relevant_documents(self, question: str, k: Optional[int] = None) -> List[Document]:
