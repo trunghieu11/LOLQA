@@ -1,6 +1,43 @@
 # 📊 Data Collection System
 
-## Overview
+---
+
+## 🚀 Quick Start
+
+### Default Setup (No Configuration Needed)
+
+The system works out of the box with default settings:
+
+```bash
+# Just run - it will use Data Dragon + Web Scraper + Sample Data
+streamlit run app.py
+```
+
+**Default behavior:**
+- ✅ **Data Dragon** enabled - Fetches all 172 champions (no API key needed)
+- ✅ **Web Scraper** enabled - Fetches lore and wiki content  
+- ❌ **Riot API** disabled - Requires API key
+- ✅ **Sample Data** enabled - Fallback
+
+### Optional Configuration
+
+Add to your `.env` file:
+
+```env
+# Enable/disable data sources
+USE_DATA_DRAGON=true    # Recommended
+USE_WEB_SCRAPER=true    # Gets lore
+USE_RIOT_API=false      # Requires API key
+USE_SAMPLE_DATA=true    # Fallback
+
+# Optional: Riot API (if enabled)
+RIOT_API_KEY=your_key_here
+RIOT_API_REGION=na1
+```
+
+---
+
+## 📋 Overview
 
 The League of Legends Q&A application uses a **modular data collection system** that can fetch data from multiple sources:
 
