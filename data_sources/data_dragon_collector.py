@@ -97,6 +97,7 @@ class DataDragonCollector(BaseDataCollector):
     def _champion_to_document(self, champ_data: Dict) -> Document:
         """
         Convert champion data to Document.
+        Automatically includes ALL available fields from the API.
         
         Args:
             champ_data: Champion data from API
@@ -104,68 +105,146 @@ class DataDragonCollector(BaseDataCollector):
         Returns:
             Document object
         """
+        content_parts = []
+        
+        # Basic information
         name = champ_data.get("name", "")
-        title = champ_data.get("title", "")
-        blurb = champ_data.get("blurb", "")
-        tags = champ_data.get("tags", [])
-        roles = ", ".join(tags) if tags else "Unknown"
+        content_parts.append(f"Champion: {name}")
         
-        # Get abilities
-        spells = champ_data.get("spells", [])
-        abilities_text = ""
-        for i, spell in enumerate(spells, 1):
-            spell_name = spell.get("name", "")
-            spell_description = spell.get("description", "")
-            # Clean HTML tags from description
-            spell_description = re.sub(r'<[^>]+>', '', spell_description)
-            abilities_text += f"- {spell_name}: {spell_description}\n"
+        if champ_data.get("title"):
+            content_parts.append(f"Title: {champ_data.get('title')}")
         
-        # Get passive
-        passive = champ_data.get("passive", {})
-        passive_name = passive.get("name", "")
-        passive_description = passive.get("description", "")
-        passive_description = re.sub(r'<[^>]+>', '', passive_description)
+        if champ_data.get("tags"):
+            roles = ", ".join(champ_data.get("tags", []))
+            content_parts.append(f"Roles: {roles}")
         
-        # Get skins information
-        skins = champ_data.get("skins", [])
-        skins_text = ""
-        if skins:
-            skins_text = f"\nSkins ({len(skins)} total):\n"
+        if champ_data.get("blurb"):
+            content_parts.append(f"\nDescription: {champ_data.get('blurb')}")
+        
+        # Stats (if available)
+        if champ_data.get("stats"):
+            stats = champ_data.get("stats", {})
+            stats_text = "\nBase Stats:"
+            for stat_name, stat_value in stats.items():
+                stats_text += f"\n- {stat_name}: {stat_value}"
+            content_parts.append(stats_text)
+        
+        # Passive ability
+        if champ_data.get("passive"):
+            passive = champ_data.get("passive", {})
+            passive_name = passive.get("name", "")
+            passive_description = passive.get("description", "")
+            passive_description = re.sub(r'<[^>]+>', '', passive_description)
+            if passive_name or passive_description:
+                content_parts.append(f"\nPassive Ability: {passive_name}")
+                if passive_description:
+                    content_parts.append(passive_description)
+        
+        # Abilities (Q, W, E, R)
+        if champ_data.get("spells"):
+            spells = champ_data.get("spells", [])
+            content_parts.append("\nAbilities:")
+            for spell in spells:
+                spell_name = spell.get("name", "")
+                spell_description = spell.get("description", "")
+                spell_description = re.sub(r'<[^>]+>', '', spell_description)
+                if spell_name:
+                    content_parts.append(f"- {spell_name}: {spell_description}")
+        
+        # Skins (automatically included if available)
+        if champ_data.get("skins"):
+            skins = champ_data.get("skins", [])
+            content_parts.append(f"\nSkins ({len(skins)} total):")
             for skin in skins:
                 skin_name = skin.get("name", "")
                 skin_num = skin.get("num", 0)
                 if skin_num == 0:
-                    skins_text += f"- {skin_name} (Default)\n"
+                    content_parts.append(f"- {skin_name} (Default)")
                 else:
-                    skins_text += f"- {skin_name}\n"
+                    content_parts.append(f"- {skin_name}")
         
-        content = f"""
-Champion: {name}
-Title: {title}
-Role: {roles}
-
-Description: {blurb}
-
-Passive Ability: {passive_name}
-{passive_description}
-
-Abilities:
-{abilities_text}
-{skins_text}
-Lore: {champ_data.get("lore", "No lore available")}
-"""
+        # Lore
+        if champ_data.get("lore"):
+            lore = champ_data.get("lore", "")
+            lore = re.sub(r'<[^>]+>', '', lore)
+            content_parts.append(f"\nLore: {lore}")
+        
+        # Include any other fields that might exist in the API
+        # This ensures we capture all data without manual updates
+        excluded_fields = {"id", "key", "name", "title", "blurb", "tags", "stats", 
+                          "passive", "spells", "skins", "lore", "allytips", "enemytips"}
+        
+        for field_name, field_value in champ_data.items():
+            if field_name not in excluded_fields and field_value:
+                # Format the field in a readable way
+                formatted_value = self._format_field_value(field_value)
+                if formatted_value:
+                    content_parts.append(f"\n{field_name.replace('_', ' ').title()}: {formatted_value}")
+        
+        # Ally tips and enemy tips (if available)
+        if champ_data.get("allytips"):
+            tips = champ_data.get("allytips", [])
+            if tips:
+                content_parts.append(f"\nAlly Tips:")
+                for tip in tips:
+                    content_parts.append(f"- {tip}")
+        
+        if champ_data.get("enemytips"):
+            tips = champ_data.get("enemytips", [])
+            if tips:
+                content_parts.append(f"\nEnemy Tips:")
+                for tip in tips:
+                    content_parts.append(f"- {tip}")
+        
+        content = "\n".join(content_parts)
         
         return Document(
             page_content=content.strip(),
             metadata={
                 "champion": name,
                 "champion_id": champ_data.get("id", ""),
-                "role": roles,
+                "champion_key": champ_data.get("key", ""),
+                "role": ", ".join(champ_data.get("tags", [])) if champ_data.get("tags") else "Unknown",
                 "type": "champion",
                 "source": "data_dragon",
                 "version": self.version
             }
         )
+    
+    def _format_field_value(self, value) -> str:
+        """
+        Format a field value for inclusion in the document.
+        Handles various data types automatically.
+        
+        Args:
+            value: Field value (can be dict, list, str, number, etc.)
+            
+        Returns:
+            Formatted string representation
+        """
+        if isinstance(value, dict):
+            # Format dict as key-value pairs
+            parts = []
+            for k, v in value.items():
+                if isinstance(v, (dict, list)):
+                    v = str(v)
+                parts.append(f"{k}: {v}")
+            return ", ".join(parts)
+        elif isinstance(value, list):
+            # Format list items
+            if not value:
+                return ""
+            # If list contains dicts, format them
+            if isinstance(value[0], dict):
+                return ", ".join([str(item) for item in value])
+            return ", ".join([str(item) for item in value])
+        elif isinstance(value, (int, float, bool)):
+            return str(value)
+        elif isinstance(value, str):
+            # Clean HTML tags
+            return re.sub(r'<[^>]+>', '', value)
+        else:
+            return str(value) if value else ""
     
     def collect_items(self) -> List[Document]:
         """
