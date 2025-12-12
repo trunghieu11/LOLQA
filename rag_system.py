@@ -9,7 +9,7 @@ from langchain_chroma import Chroma
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.runnables import RunnablePassthrough
+from langchain_core.runnables import RunnablePassthrough, RunnableLambda, RunnableLambda
 from langchain_core.output_parsers import StrOutputParser
 from data_collector import LoLDataCollector
 from config import config
@@ -143,11 +143,19 @@ class LoLRAGSystem:
         prompt = ChatPromptTemplate.from_template(DEFAULT_PROMPT_TEMPLATE_WITH_HISTORY)
         
         # Create the chain using LCEL with history
+        # The retriever needs the question string, so we extract it from the input dict
+        # and format the retrieved documents
+        def format_context(input_dict):
+            """Extract question, retrieve docs, and format them"""
+            question = input_dict["question"]
+            docs = self.retriever.invoke(question)
+            return format_documents(docs)
+        
         self.qa_chain_with_history = (
             {
-                "context": self.retriever,
-                "chat_history": RunnablePassthrough(),
-                "question": RunnablePassthrough()
+                "context": RunnableLambda(format_context),
+                "chat_history": RunnableLambda(lambda x: x.get("chat_history", "")),
+                "question": RunnableLambda(lambda x: x["question"])
             }
             | prompt
             | self.llm
