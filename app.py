@@ -103,6 +103,32 @@ def render_sidebar():
             if st.button(f"💬 {q}", key=f"example_{i}", use_container_width=True):
                 st.session_state[SESSION_USER_QUESTION] = q
         
+        # Copy conversation section
+        st.divider()
+        st.header("📋 Copy Conversation")
+        
+        # Initialize session state if needed
+        if SESSION_MESSAGES not in st.session_state:
+            st.session_state[SESSION_MESSAGES] = []
+        
+        if st.session_state[SESSION_MESSAGES]:
+            if st.button("📋 Copy Chat", use_container_width=True, key="copy_btn"):
+                st.session_state["show_copy"] = not st.session_state.get("show_copy", False)
+            
+            # Show formatted conversation if toggled
+            if st.session_state.get("show_copy", False):
+                formatted = format_conversation_for_copy(st.session_state[SESSION_MESSAGES])
+                st.text_area(
+                    "Conversation",
+                    value=formatted,
+                    height=300,
+                    key="copy_area",
+                    label_visibility="collapsed"
+                )
+                st.caption("👆 Select all and copy")
+        else:
+            st.info("Start a conversation to enable copy")
+        
 
 
 def render_chat_history():
@@ -179,20 +205,6 @@ def main():
     # Header
     st.title(f"{config.app.page_icon} {config.app.page_title}")
     st.markdown(APP_DESCRIPTION)
-    
-    # Copy button - place it prominently at the top
-    if SESSION_MESSAGES in st.session_state and st.session_state[SESSION_MESSAGES]:
-        col1, col2, col3 = st.columns([4, 1, 1])
-        with col3:
-            if st.button("📋 Copy Chat", use_container_width=True, key="copy_btn"):
-                st.session_state["show_copy"] = not st.session_state.get("show_copy", False)
-        
-        # Show formatted conversation if toggled
-        if st.session_state.get("show_copy", False):
-            with st.expander("📋 Conversation Copy", expanded=True):
-                formatted = format_conversation_for_copy(st.session_state[SESSION_MESSAGES])
-                st.code(formatted, language="text")
-                st.caption("👆 Select all text above and copy (Ctrl+A / Cmd+A, then Ctrl+C / Cmd+C)")
     
     # Sidebar
     render_sidebar()
