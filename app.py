@@ -2,7 +2,6 @@
 Streamlit Web Application for League of Legends Q&A
 Main entry point for the application
 """
-import json
 import streamlit as st
 import streamlit.components.v1 as components
 from langsmith import traceable
@@ -69,16 +68,16 @@ def setup_page():
 
 def format_conversation_for_copy(messages: list) -> str:
     """
-    Format conversation history as a readable string for copying.
+    Format conversation history as a readable string.
     
     Args:
         messages: List of message dicts with 'role' and 'content'
         
     Returns:
-        Formatted string representation of the conversation
+        Formatted string in the requested format
     """
     if not messages:
-        return "No conversation history yet."
+        return "No conversation yet."
     
     lines = []
     for i, message in enumerate(messages, 1):
@@ -87,7 +86,7 @@ def format_conversation_for_copy(messages: list) -> str:
         
         lines.append(f"[{i}] {role}:")
         lines.append(content)
-        lines.append("")
+        lines.append("")  # Empty line between messages
     
     return "\n".join(lines).strip()
 
@@ -103,32 +102,24 @@ def render_sidebar():
             if st.button(f"💬 {q}", key=f"example_{i}", use_container_width=True):
                 st.session_state[SESSION_USER_QUESTION] = q
         
-        # Copy conversation section
+        # Copy conversation section - always visible
         st.divider()
-        st.header("📋 Copy Conversation")
+        st.header("Copy Conversation")
         
-        # Initialize session state if needed
-        if SESSION_MESSAGES not in st.session_state:
-            st.session_state[SESSION_MESSAGES] = []
-        
-        if st.session_state[SESSION_MESSAGES]:
-            if st.button("📋 Copy Chat", use_container_width=True, key="copy_btn"):
-                st.session_state["show_copy"] = not st.session_state.get("show_copy", False)
+        # Copy to clipboard button
+        if st.button("📋 Show Conversation to Copy", use_container_width=True, key="copy_conversation"):
+            # Get messages from session state when button is clicked
+            messages = st.session_state.get(SESSION_MESSAGES, [])
+            formatted_conversation = format_conversation_for_copy(messages)
             
-            # Show formatted conversation if toggled
-            if st.session_state.get("show_copy", False):
-                formatted = format_conversation_for_copy(st.session_state[SESSION_MESSAGES])
-                st.text_area(
-                    "Conversation",
-                    value=formatted,
-                    height=300,
-                    key="copy_area",
-                    label_visibility="collapsed"
-                )
-                st.caption("👆 Select all and copy")
-        else:
-            st.info("Start a conversation to enable copy")
-        
+            # Show conversation in a text area for easy copying
+            st.text_area(
+                "Select all (Ctrl/Cmd+A) and copy (Ctrl/Cmd+C):",
+                formatted_conversation,
+                height=300,
+                key="conversation_display"
+            )
+            st.info("💡 Click in the text box above, press Ctrl+A (Cmd+A on Mac) to select all, then Ctrl+C (Cmd+C) to copy")
 
 
 def render_chat_history():
