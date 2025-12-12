@@ -11,6 +11,8 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough, RunnableLambda
 from langchain_core.output_parsers import StrOutputParser
+from langchain.chains.query_constructor.base import AttributeInfo
+from langchain.retrievers.self_query.base import SelfQueryRetriever
 from data_collector import LoLDataCollector
 from config import config
 from constants import (
@@ -115,12 +117,53 @@ class LoLRAGSystem:
         logger.info(MSG_VECTOR_STORE_CREATED.format(count=len(splits)))
     
     def _create_retriever(self):
-        """Create retriever from vector store"""
-        self.retriever = self.vectorstore.as_retriever(
-            search_type="similarity",
-            search_kwargs={"k": config.rag.retrieval_k}
-        )
-        logger.info(f"Retriever created with k={config.rag.retrieval_k}")
+        """Create self-querying retriever from vector store"""
+        # Define metadata field information for self-querying
+        metadata_field_info = [
+            AttributeInfo(
+                name="type",
+                description="The type of document: 'champion' for champion information, 'item' for items, 'lore' for lore/story",
+                type="string",
+            ),
+            AttributeInfo(
+                name="champion",
+                description="The name of the League of Legends champion (only for champion documents)",
+                type="string",
+            ),
+            AttributeInfo(
+                name="role",
+                description="The champion's role(s), e.g., 'Fighter', 'Mage', 'Assassin', 'Tank', 'Support', 'Marksman' (only for champion documents)",
+                type="string",
+            ),
+            AttributeInfo(
+                name="source",
+                description="The data source: 'data_dragon', 'sample', 'web_scraper', etc.",
+                type="string",
+            ),
+        ]
+        
+        # Document content description for the self-querying retriever
+        document_content_description = "League of Legends game information including champion abilities, stats, lore, items, and gameplay mechanics"
+        
+        # Create self-querying retriever
+        try:
+            self.retriever = SelfQueryRetriever.from_llm(
+                llm=self.llm,
+                vectorstore=self.vectorstore,
+                document_contents=document_content_description,
+                metadata_field_info=metadata_field_info,
+                search_kwargs={"k": config.rag.retrieval_k},
+                verbose=True,  # Enable logging to see the generated queries
+            )
+            logger.info(f"Self-querying retriever created with k={config.rag.retrieval_k}")
+        except Exception as e:
+            # Fallback to regular retriever if self-querying fails
+            logger.warning(f"Failed to create self-querying retriever, falling back to regular retriever: {e}")
+            self.retriever = self.vectorstore.as_retriever(
+                search_type="similarity",
+                search_kwargs={"k": config.rag.retrieval_k}
+            )
+            logger.info(f"Regular retriever created as fallback with k={config.rag.retrieval_k}")
     
     def _create_qa_chain(self):
         """Create the QA chain"""
