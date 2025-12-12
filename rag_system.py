@@ -15,6 +15,7 @@ from data_collector import LoLDataCollector
 from config import config
 from constants import (
     DEFAULT_PROMPT_TEMPLATE,
+    DEFAULT_PROMPT_TEMPLATE_WITH_HISTORY,
     ERROR_RAG_NOT_INITIALIZED,
     MSG_LOADING_VECTOR_STORE,
     MSG_CREATING_VECTOR_STORE,
@@ -76,6 +77,9 @@ class LoLRAGSystem:
             # Create QA chain
             self._create_qa_chain()
             
+            # Create QA chain with history support
+            self._create_qa_chain_with_history()
+            
             logger.info("RAG system initialized successfully")
             
         except Exception as e:
@@ -133,13 +137,31 @@ class LoLRAGSystem:
             | StrOutputParser()
         )
         logger.info("QA chain created")
+    
+    def _create_qa_chain_with_history(self):
+        """Create the QA chain with conversation history support"""
+        prompt = ChatPromptTemplate.from_template(DEFAULT_PROMPT_TEMPLATE_WITH_HISTORY)
         
-    def query(self, question: str) -> str:
+        # Create the chain using LCEL with history
+        self.qa_chain_with_history = (
+            {
+                "context": self.retriever,
+                "chat_history": RunnablePassthrough(),
+                "question": RunnablePassthrough()
+            }
+            | prompt
+            | self.llm
+            | StrOutputParser()
+        )
+        logger.info("QA chain with history created")
+        
+    def query(self, question: str, chat_history: Optional[str] = None) -> str:
         """
         Query the RAG system.
         
         Args:
             question: User's question
+            chat_history: Optional conversation history string
             
         Returns:
             Generated answer string
@@ -152,7 +174,14 @@ class LoLRAGSystem:
         
         logger.info(f"Processing query: {question[:50]}...")
         try:
-            answer = self.qa_chain.invoke(question)
+            # Use chain with history if history is provided
+            if chat_history and hasattr(self, 'qa_chain_with_history'):
+                answer = self.qa_chain_with_history.invoke({
+                    "question": question,
+                    "chat_history": chat_history
+                })
+            else:
+                answer = self.qa_chain.invoke(question)
             logger.info("Query processed successfully")
             return answer
         except Exception as e:

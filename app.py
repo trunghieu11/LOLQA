@@ -41,18 +41,19 @@ def initialize_systems():
 
 
 @traceable(name="lol_qa_query")
-def process_query(question: str, graph: LoLQAGraph) -> str:
+def process_query(question: str, graph: LoLQAGraph, conversation_history: list = None) -> str:
     """
     Process a query using LangGraph workflow (traced with LangSmith).
     
     Args:
         question: User's question
         graph: LangGraph workflow instance
+        conversation_history: Optional list of previous messages
         
     Returns:
         Generated answer string
     """
-    return graph.invoke(question)
+    return graph.invoke(question, conversation_history=conversation_history)
 
 
 def setup_page():
@@ -111,7 +112,9 @@ def handle_user_input(graph: LoLQAGraph):
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
                 try:
-                    answer = process_query(user_question, graph)
+                    # Get conversation history (all messages except the current one)
+                    conversation_history = st.session_state[SESSION_MESSAGES].copy()
+                    answer = process_query(user_question, graph, conversation_history)
                     st.markdown(answer)
                     st.session_state[SESSION_MESSAGES].append({"role": "assistant", "content": answer})
                 except Exception as e:

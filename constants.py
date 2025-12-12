@@ -14,6 +14,22 @@ Question: {question}
 
 Provide a detailed and helpful answer about League of Legends:"""
 
+# Prompt Template with Conversation History
+DEFAULT_PROMPT_TEMPLATE_WITH_HISTORY = """You are a helpful assistant specialized in League of Legends game knowledge.
+Use the following pieces of context about League of Legends to answer the question.
+If you don't know the answer based on the context, say that you don't know, but try to provide helpful information.
+
+IMPORTANT: Pay attention to the conversation history. If the user refers to something mentioned earlier (like "he", "she", "it", "this champion", etc.), use the conversation history to understand what they're referring to.
+
+Context: {context}
+
+Conversation History:
+{chat_history}
+
+Current Question: {question}
+
+Provide a detailed and helpful answer about League of Legends. If the question references something from the conversation history, make sure to use that context:"""
+
 # Error Messages
 ERROR_RAG_NOT_INITIALIZED = "RAG system not initialized. Call initialize() first."
 ERROR_MISSING_API_KEY = "⚠️ Please set your OPENAI_API_KEY in the .env file"

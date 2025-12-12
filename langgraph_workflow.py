@@ -2,7 +2,7 @@
 LangGraph Workflow for League of Legends Q&A
 Orchestrates the Q&A process with state management
 """
-from typing import TypedDict, Annotated
+from typing import TypedDict, Annotated, Optional
 from langgraph.graph import StateGraph, END
 from langgraph.graph.message import add_messages
 from langchain_core.messages import HumanMessage, AIMessage
@@ -118,15 +118,50 @@ class LoLQAGraph:
             Updated state with generated answer
         """
         question = state.get("question", "")
+        messages = state.get("messages", [])
         
-        # Use RAG system to generate answer
-        answer = self.rag_system.query(question)
+        # Format conversation history from messages (exclude the last user message)
+        chat_history = self._format_chat_history(messages[:-1] if len(messages) > 1 else [])
+        
+        # Use RAG system to generate answer with history
+        answer = self.rag_system.query(question, chat_history=chat_history if chat_history else None)
         
         logger.debug("Answer generated successfully")
         return {
             **state,
             "answer": answer
         }
+    
+    def _format_chat_history(self, messages: list) -> str:
+        """
+        Format conversation history from messages for the prompt.
+        
+        Args:
+            messages: List of message objects (HumanMessage, AIMessage)
+            
+        Returns:
+            Formatted conversation history string, or empty string if no history
+        """
+        if not messages:
+            return ""
+        
+        history_lines = []
+        for msg in messages:
+            content = ""
+            if isinstance(msg, HumanMessage):
+                content = msg.content
+                history_lines.append(f"User: {content}")
+            elif isinstance(msg, AIMessage):
+                content = msg.content
+                history_lines.append(f"Assistant: {content}")
+            else:
+                # Fallback for other message types
+                content = str(getattr(msg, 'content', msg))
+                history_lines.append(f"User: {content}")
+        
+        # Only return history if we have actual content
+        formatted = "\n".join(history_lines)
+        return formatted if formatted.strip() else ""
     
     def _format_response(self, state: GraphState) -> GraphState:
         """
@@ -149,19 +184,34 @@ class LoLQAGraph:
             "messages": new_messages
         }
     
-    def invoke(self, question: str) -> str:
+    def invoke(self, question: str, conversation_history: Optional[list] = None) -> str:
         """
-        Invoke the workflow with a question.
+        Invoke the workflow with a question and optional conversation history.
         
         Args:
             question: User's question
+            conversation_history: Optional list of previous messages in format 
+                                [{"role": "user", "content": "..."}, {"role": "assistant", "content": "..."}]
             
         Returns:
             Generated answer string
         """
         logger.info(f"Invoking workflow for question: {question[:50]}...")
+        
+        # Convert conversation history to LangChain messages if provided
+        messages = []
+        if conversation_history:
+            for msg in conversation_history:
+                if msg.get("role") == "user":
+                    messages.append(HumanMessage(content=msg.get("content", "")))
+                elif msg.get("role") == "assistant":
+                    messages.append(AIMessage(content=msg.get("content", "")))
+        
+        # Add current question
+        messages.append(HumanMessage(content=question))
+        
         initial_state = {
-            "messages": [HumanMessage(content=question)],
+            "messages": messages,
             "question": "",
             "answer": "",
             "rag_context": ""
