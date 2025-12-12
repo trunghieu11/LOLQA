@@ -1,0 +1,84 @@
+name: Tests
+
+on:
+  push:
+    branches: [ main, fix/context-memory ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        python-version: ['3.11']
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-test.txt
+    
+    - name: Run tests with pytest
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        TESTING: true
+      run: |
+        pytest -v --cov=src --cov-report=xml --cov-report=term-missing
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        fail_ci_if_error: false
+        verbose: true
+    
+    - name: Check coverage threshold
+      run: |
+        pytest --cov=src --cov-fail-under=50
+
+  lint:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install linting tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install black isort flake8
+    
+    - name: Check code formatting with black
+      run: black --check src tests
+      continue-on-error: true
+    
+    - name: Check import sorting with isort
+      run: isort --check-only src tests
+      continue-on-error: true
+    
+    - name: Lint with flake8
+      run: flake8 src tests --max-line-length=120 --ignore=E203,W503
+      continue-on-error: true
+
