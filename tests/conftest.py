@@ -145,3 +145,68 @@ def clean_chroma_db(tmp_path):
     db_path.mkdir()
     return str(db_path)
 
+
+@pytest.fixture
+def mock_redis_client():
+    """Mock Redis client"""
+    mock = MagicMock()
+    mock.get.return_value = None
+    mock.set.return_value = True
+    mock.delete.return_value = True
+    mock.enqueue.return_value = True
+    mock.dequeue.return_value = None
+    mock.get_queue_length.return_value = 0
+    return mock
+
+
+@pytest.fixture
+def mock_db_client():
+    """Mock database client"""
+    mock = MagicMock()
+    mock.execute_query.return_value = []
+    mock.execute_update.return_value = True
+    mock.create_pipeline_job.return_value = True
+    mock.update_pipeline_job.return_value = True
+    mock.get_pipeline_job.return_value = None
+    mock.log_query.return_value = True
+    return mock
+
+
+@pytest.fixture
+def mock_llm_service_response():
+    """Mock LLM service response"""
+    return {
+        "content": "Test response from LLM",
+        "model": "gpt-4o-mini",
+        "usage": {"prompt_tokens": 10, "completion_tokens": 20}
+    }
+
+
+@pytest.fixture
+def mock_rag_service_response():
+    """Mock RAG service response"""
+    return {
+        "answer": "Test answer from RAG",
+        "context": [
+            {
+                "content": "Test context",
+                "metadata": {"type": "champion"}
+            }
+        ]
+    }
+
+
+@pytest.fixture
+def mock_jwt_token():
+    """Mock JWT token"""
+    import os
+    from datetime import datetime, timedelta
+    from jose import jwt
+    
+    os.environ["JWT_SECRET_KEY"] = "test-secret-key"
+    data = {
+        "sub": "testuser",
+        "exp": datetime.utcnow() + timedelta(minutes=30)
+    }
+    return jwt.encode(data, "test-secret-key", algorithm="HS256")
+

@@ -9,6 +9,8 @@ pytest-timeout>=2.1.0
 faker>=19.6.2
 responses>=0.23.3
 freezegun>=1.2.2
+httpx>=0.25.0
+fastapi>=0.104.0
 
 # Code quality
 black>=23.7.0

@@ -1,0 +1,40 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'lolqa'
+    environment: 'development'
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'llm-service'
+    static_configs:
+      - targets: ['llm-service:9091']
+    metrics_path: '/metrics'
+
+  - job_name: 'rag-service'
+    static_configs:
+      - targets: ['rag-service:9091']
+    metrics_path: '/metrics'
+
+  - job_name: 'data-pipeline-service'
+    static_configs:
+      - targets: ['data-pipeline-service:9091']
+    metrics_path: '/metrics'
+
+  - job_name: 'ui-service'
+    static_configs:
+      - targets: ['ui-service:9091']
+    metrics_path: '/metrics'
+
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis:6379']
+
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres:5432']
+
