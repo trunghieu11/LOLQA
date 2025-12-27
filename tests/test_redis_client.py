@@ -1,7 +1,24 @@
 """Tests for Redis client utilities"""
 import pytest
+import sys
+from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
-from shared.common.redis_client import RedisClient, get_cache_key, get_embedding_cache_key
+
+# Add paths
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
+
+# Import using helper
+from tests.import_helpers import import_shared_module
+
+try:
+    redis_module = import_shared_module("redis_client")
+    RedisClient = redis_module.RedisClient
+    get_cache_key = redis_module.get_cache_key
+    get_embedding_cache_key = redis_module.get_embedding_cache_key
+except (ImportError, AttributeError) as e:
+    # Skip tests if redis is not installed
+    pytest.skip(f"redis not available: {e}", allow_module_level=True)
 
 
 class TestRedisClient:

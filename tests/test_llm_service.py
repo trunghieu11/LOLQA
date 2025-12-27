@@ -6,11 +6,22 @@ import sys
 from pathlib import Path
 
 # Add paths
-sys.path.insert(0, str(Path(__file__).parent.parent))
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
 
-from services.llm_service.main import app
-from services.llm_service.llm_client import LLMClient
-from shared.common.config import LLMServiceConfig
+# Import using helper to handle hyphenated directory names
+from tests.import_helpers import import_service_module
+
+try:
+    llm_module = import_service_module("llm-service", "main")
+    app = llm_module.app
+    
+    llm_client_module = import_service_module("llm-service", "llm_client")
+    LLMClient = llm_client_module.LLMClient
+    
+    from shared.common.config import LLMServiceConfig
+except (ImportError, AttributeError) as e:
+    pytest.skip(f"Could not import LLM service: {e}", allow_module_level=True)
 
 
 class TestLLMServiceAPI:

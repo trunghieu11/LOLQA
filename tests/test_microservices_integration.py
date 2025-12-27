@@ -1,12 +1,18 @@
 """Integration tests for microservices"""
 import pytest
 from unittest.mock import Mock, patch, MagicMock, AsyncMock
-import httpx
 import sys
 from pathlib import Path
 
 # Add paths
-sys.path.insert(0, str(Path(__file__).parent.parent))
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
+
+try:
+    import httpx
+except ImportError:
+    httpx = None
+    pytest.skip("httpx not installed", allow_module_level=True)
 
 
 class TestMicroservicesIntegration:

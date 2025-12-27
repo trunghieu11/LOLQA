@@ -1,7 +1,23 @@
 """Tests for database client utilities"""
 import pytest
+import sys
+from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
-from shared.common.db_client import DatabaseClient, get_db_client
+
+# Add paths
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
+
+# Import using helper
+from tests.import_helpers import import_shared_module
+
+try:
+    db_module = import_shared_module("db_client")
+    DatabaseClient = db_module.DatabaseClient
+    get_db_client = db_module.get_db_client
+except (ImportError, AttributeError) as e:
+    # Skip tests if psycopg2 is not installed
+    pytest.skip(f"psycopg2 not available: {e}", allow_module_level=True)
 
 
 class TestDatabaseClient:
