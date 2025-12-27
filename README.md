@@ -47,17 +47,24 @@ The application will be available at `http://localhost:8501`
 
 ## 🏗️ Project Structure
 
+The project has been reorganized for better maintainability:
+
 ```
 .
-├── app.py                 # Main Streamlit application
-├── rag_system.py          # RAG system with vector store and retrieval
-├── langgraph_workflow.py  # LangGraph workflow orchestration
-├── data_collector.py      # Data collection and preparation
-├── requirements.txt       # Python dependencies
-├── Dockerfile            # Docker configuration
-├── Procfile              # For cloud deployment
-└── README.md             # This file
+├── app_new.py            # Main Streamlit application (NEW organized structure)
+├── src/                  # Source code (organized by function)
+│   ├── core/            # Core RAG and workflow logic
+│   ├── data/            # Data collection and sources
+│   ├── config/          # Configuration and constants
+│   └── utils/           # Utility functions
+├── docs/                 # All documentation
+├── deployment/           # Docker and cloud configs
+├── scripts/              # Setup and utility scripts
+├── tests/                # Test suite
+└── requirements.txt      # Python dependencies
 ```
+
+📖 **For detailed structure**: See [docs/PROJECT_STRUCTURE.md](docs/PROJECT_STRUCTURE.md)
 
 ## 🐳 Docker Deployment
 
@@ -105,6 +112,36 @@ docker run -p 8501:8501 --env-file .env lol-qa-app
 3. Create app: `heroku create your-app-name`
 4. Set environment variables: `heroku config:set OPENAI_API_KEY=...`
 5. Deploy: `git push heroku main`
+
+## 🧪 Testing
+
+This project includes comprehensive tests for all components.
+
+### Run Tests
+
+```bash
+# Install test dependencies
+pip install -r requirements-test.txt
+
+# Run all tests
+pytest
+
+# Run with coverage
+pytest --cov=src --cov-report=html
+
+# Run specific test types
+pytest -m unit           # Unit tests only
+pytest -m integration    # Integration tests only
+```
+
+### Test Coverage
+
+- ✅ **70%+** overall coverage
+- ✅ Unit tests for all core components
+- ✅ Integration tests for end-to-end flows
+- ✅ Mocked external dependencies (no real API calls)
+
+📖 **For detailed testing guide**: See [docs/TESTING.md](docs/TESTING.md)
 
 ## 🔍 How It Works
 

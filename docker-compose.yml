@@ -1,0 +1,274 @@
+version: '3.8'
+
+services:
+  # LLM Service
+  llm-service:
+    build:
+      context: .
+      dockerfile: services/llm-service/Dockerfile
+    container_name: llm-service
+    ports:
+      - "8001:8000"
+    environment:
+      - LLM_SERVICE_HOST=0.0.0.0
+      - LLM_SERVICE_PORT=8000
+      - LLM_BACKEND=openai
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - LLM_MODEL=${LLM_MODEL:-gpt-4o-mini}
+      - LLM_TEMPERATURE=${LLM_TEMPERATURE:-0.7}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - REDIS_URL=redis://redis:6379/0
+      - POSTGRES_URL=postgresql://lolqa:${POSTGRES_PASSWORD:-lolqa_password}@postgres:5432/lolqa
+    networks:
+      - lolqa-network
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # RAG Service
+  rag-service:
+    build:
+      context: .
+      dockerfile: services/rag-service/Dockerfile
+    container_name: rag-service
+    ports:
+      - "8002:8000"
+    environment:
+      - RAG_SERVICE_HOST=0.0.0.0
+      - RAG_SERVICE_PORT=8000
+      - LLM_SERVICE_URL=http://llm-service:8000
+      - VECTOR_DB_PATH=/app/chroma_db
+      - RAG_CHUNK_SIZE=${RAG_CHUNK_SIZE:-1000}
+      - RAG_CHUNK_OVERLAP=${RAG_CHUNK_OVERLAP:-200}
+      - RAG_RETRIEVAL_K=${RAG_RETRIEVAL_K:-3}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - REDIS_URL=redis://redis:6379/0
+      - POSTGRES_URL=postgresql://lolqa:${POSTGRES_PASSWORD:-lolqa_password}@postgres:5432/lolqa
+      - PROMETHEUS_PORT=9091
+    volumes:
+      - chroma_db_data:/app/chroma_db
+    networks:
+      - lolqa-network
+    depends_on:
+      - llm-service
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Data Pipeline Service
+  data-pipeline-service:
+    build:
+      context: .
+      dockerfile: services/data-pipeline-service/Dockerfile
+    container_name: data-pipeline-service
+    ports:
+      - "8003:8000"
+    environment:
+      - DATA_PIPELINE_SERVICE_HOST=0.0.0.0
+      - DATA_PIPELINE_SERVICE_PORT=8000
+      - LLM_SERVICE_URL=http://llm-service:8000
+      - VECTOR_DB_PATH=/app/chroma_db
+      - DATA_DIRECTORY=/app/data
+      - USE_DATA_DRAGON=${USE_DATA_DRAGON:-true}
+      - USE_WEB_SCRAPER=${USE_WEB_SCRAPER:-true}
+      - USE_RIOT_API=${USE_RIOT_API:-false}
+      - USE_SAMPLE_DATA=${USE_SAMPLE_DATA:-true}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - REDIS_URL=redis://redis:6379/0
+      - POSTGRES_URL=postgresql://lolqa:${POSTGRES_PASSWORD:-lolqa_password}@postgres:5432/lolqa
+      - PROMETHEUS_PORT=9091
+    volumes:
+      - chroma_db_data:/app/chroma_db
+      - data_directory:/app/data
+    networks:
+      - lolqa-network
+    depends_on:
+      - llm-service
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Auth Service
+  auth-service:
+    build:
+      context: .
+      dockerfile: services/auth-service/Dockerfile
+    container_name: auth-service
+    ports:
+      - "8004:8004"
+    environment:
+      - AUTH_SERVICE_HOST=0.0.0.0
+      - AUTH_SERVICE_PORT=8004
+      - POSTGRES_URL=postgresql://lolqa:${POSTGRES_PASSWORD:-lolqa_password}@postgres:5432/lolqa
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-lolqa_password}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-change-me-in-production}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    networks:
+      - lolqa-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8004/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # UI Service
+  ui-service:
+    build:
+      context: .
+      dockerfile: services/ui-service/Dockerfile
+    container_name: ui-service
+    ports:
+      - "8501:8501"
+    environment:
+      - UI_SERVICE_HOST=0.0.0.0
+      - UI_SERVICE_PORT=8501
+      - RAG_SERVICE_URL=http://rag-service:8000
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    networks:
+      - lolqa-network
+    depends_on:
+      - rag-service
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis (Caching and Job Queue)
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - lolqa-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # PostgreSQL (Metadata Storage)
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=lolqa
+      - POSTGRES_USER=lolqa
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-lolqa_password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    networks:
+      - lolqa-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lolqa"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Prometheus (Monitoring)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    networks:
+      - lolqa-network
+    depends_on:
+      - llm-service
+      - rag-service
+      - data-pipeline-service
+
+  # Grafana (Monitoring Dashboard)
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    networks:
+      - lolqa-network
+    depends_on:
+      - prometheus
+
+  # API Gateway (Traefik)
+  api-gateway:
+    image: traefik:v2.10
+    container_name: api-gateway
+    ports:
+      - "80:80"
+      - "8080:8080"  # Traefik dashboard
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./api-gateway/traefik.yml:/traefik.yml
+    networks:
+      - lolqa-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.llm.rule=Host(`llm.localhost`)"
+      - "traefik.http.routers.llm.entrypoints=web"
+      - "traefik.http.services.llm.loadbalancer.server.port=8000"
+      - "traefik.http.routers.rag.rule=Host(`rag.localhost`)"
+      - "traefik.http.routers.rag.entrypoints=web"
+      - "traefik.http.services.rag.loadbalancer.server.port=8000"
+      - "traefik.http.routers.data-pipeline.rule=Host(`pipeline.localhost`)"
+      - "traefik.http.routers.data-pipeline.entrypoints=web"
+      - "traefik.http.services.data-pipeline.loadbalancer.server.port=8000"
+
+volumes:
+  chroma_db_data:
+  data_directory:
+  redis_data:
+  postgres_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  lolqa-network:
+    driver: bridge
+
