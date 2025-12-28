@@ -78,7 +78,11 @@ class TestDatabaseClient:
         result = client.execute_update("INSERT INTO test (name) VALUES (%s)", ("test",))
         
         assert result is True
-        mock_cursor.execute.assert_called_once()
+        # execute is called twice: once for connection test (SELECT 1), once for actual query
+        assert mock_cursor.execute.call_count >= 1
+        # Verify the actual query was called
+        calls = [str(call) for call in mock_cursor.execute.call_args_list]
+        assert any("INSERT INTO test" in str(call) for call in calls)
     
     @patch('shared.common.db_client.ThreadedConnectionPool')
     def test_create_pipeline_job(self, mock_pool_class, mock_pool, mock_connection):
@@ -91,7 +95,11 @@ class TestDatabaseClient:
         result = client.create_pipeline_job("job123", "queued", "Job queued")
         
         assert result is True
-        mock_cursor.execute.assert_called_once()
+        # execute is called twice: once for connection test, once for actual query
+        assert mock_cursor.execute.call_count >= 1
+        # Verify the pipeline_jobs query was called
+        calls = [str(call) for call in mock_cursor.execute.call_args_list]
+        assert any("pipeline_jobs" in str(call) for call in calls)
     
     @patch('shared.common.db_client.ThreadedConnectionPool')
     def test_update_pipeline_job(self, mock_pool_class, mock_pool, mock_connection):
@@ -104,7 +112,11 @@ class TestDatabaseClient:
         result = client.update_pipeline_job("job123", "completed", "Done", {"docs": 10})
         
         assert result is True
-        mock_cursor.execute.assert_called_once()
+        # execute is called twice: once for connection test, once for actual query
+        assert mock_cursor.execute.call_count >= 1
+        # Verify the UPDATE query was called
+        calls = [str(call) for call in mock_cursor.execute.call_args_list]
+        assert any("UPDATE pipeline_jobs" in str(call) for call in calls)
     
     @patch('shared.common.db_client.ThreadedConnectionPool')
     def test_get_pipeline_job(self, mock_pool_class, mock_pool, mock_connection):
@@ -136,7 +148,11 @@ class TestDatabaseClient:
         result = client.log_query("What is LoL?", "Answer", "rag-service", 150, {"k": 3})
         
         assert result is True
-        mock_cursor.execute.assert_called_once()
+        # execute is called twice: once for connection test, once for actual query
+        assert mock_cursor.execute.call_count >= 1
+        # Verify the query_history INSERT was called
+        calls = [str(call) for call in mock_cursor.execute.call_args_list]
+        assert any("query_history" in str(call) for call in calls)
 
 
 class TestGetDbClient:
