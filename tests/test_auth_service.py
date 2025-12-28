@@ -135,7 +135,8 @@ class TestAuthServiceAPI:
     def test_get_current_user(self, client):
         """Test getting current user info"""
         # Override the verify_token dependency
-        def mock_verify_token():
+        # verify_token takes credentials parameter, but we can override it to return payload directly
+        def mock_verify_token(credentials=None):
             return {"sub": "testuser", "exp": 9999999999}
         
         mock_db_instance = MagicMock()
@@ -157,7 +158,7 @@ class TestAuthServiceAPI:
                     headers={"Authorization": f"Bearer {token}"}
                 )
                 
-                assert response.status_code == 200
+                assert response.status_code == 200, f"Expected 200 but got {response.status_code}: {response.json()}"
                 data = response.json()
                 assert data["username"] == "testuser"
         finally:
@@ -167,7 +168,8 @@ class TestAuthServiceAPI:
     def test_verify_token_endpoint(self, client):
         """Test token verification endpoint"""
         # Override the verify_token dependency
-        def mock_verify_token():
+        # verify_token takes credentials parameter, but we can override it to return payload directly
+        def mock_verify_token(credentials=None):
             return {"sub": "testuser", "exp": 9999999999}
         
         app.dependency_overrides[auth_module.verify_token] = mock_verify_token
@@ -181,7 +183,7 @@ class TestAuthServiceAPI:
                 headers={"Authorization": f"Bearer {token}"}
             )
             
-            assert response.status_code == 200
+            assert response.status_code == 200, f"Expected 200 but got {response.status_code}: {response.json()}"
             data = response.json()
             assert data["valid"] is True
         finally:
