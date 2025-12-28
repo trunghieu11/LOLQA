@@ -41,11 +41,11 @@ LOLQA is built as a **microservices architecture** with 5 main services:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    API Gateway (Traefik)                      │
-│                    Port: 80, Dashboard: 8080                  │
+│                    API Gateway (Traefik)                    │
+│                    Port: 80, Dashboard: 8080                │
 └─────────────────────────────────────────────────────────────┘
-         │         │         │         │         │
-         ▼         ▼         ▼         ▼         ▼
+         │         │          │          │          │
+         ▼         ▼           ▼         ▼          ▼
     ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐
     │   UI   │ │  RAG   │ │  LLM   │ │  Data  │ │  Auth  │
     │Service │ │Service │ │Service │ │Pipeline│ │Service │
@@ -53,13 +53,13 @@ LOLQA is built as a **microservices architecture** with 5 main services:
     └────────┘ └────┬───┘ └────┬───┘ └────┬───┘ └────────┘
                     │          │          │
                     │          │          │
-         ┌──────────┴──────────┴──────────┴──────────┐
-         │                                            │
+         ┌──────────┴──────────┴──────────┴─────────┐
+         │                                          │
     ┌────▼────┐  ┌──────────┐  ┌──────────┐  ┌──────▼────┐
     │ Vector  │  │  Redis   │  │PostgreSQL│  │Prometheus │
     │   DB    │  │ (Cache + │  │(Metadata)│  │(Metrics)  │
-    │(Chroma)│  │  Queue)   │  │          │  │          │
-    └─────────┘  └──────────┘  └──────────┘  └──────────┘
+    │(Chroma) │  │  Queue)  │  │          │  │           │
+    └─────────┘  └──────────┘  └──────────┘  └───────────┘
                                                       │
                                                ┌──────▼────┐
                                                │  Grafana  │

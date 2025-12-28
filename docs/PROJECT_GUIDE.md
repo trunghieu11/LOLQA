@@ -81,78 +81,78 @@ The application demonstrates modern AI development practices including:
 ### High-Level Overview
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
+┌──────────────────────────────────────────────────────────────────┐
 │                    USER (Web Browser)                            │
-└────────────────────────┬────────────────────────────────────────┘
+└────────────────────────┬─────────────────────────────────────────┘
                          │
                          ▼
-┌─────────────────────────────────────────────────────────────────┐
+┌──────────────────────────────────────────────────────────────────┐
 │                 STREAMLIT UI (app.py)                            │
 │                 - Chat interface                                 │
 │                 - Session management                             │
 │                 - Copy conversation                              │
-└────────────────────────┬────────────────────────────────────────┘
+└────────────────────────┬─────────────────────────────────────────┘
                          │
                          ▼
-┌─────────────────────────────────────────────────────────────────┐
-│         LANGGRAPH WORKFLOW (src/core/workflow.py)               │
+┌──────────────────────────────────────────────────────────────────┐
+│         LANGGRAPH WORKFLOW (src/core/workflow.py)                │
 │         - Extract question                                       │
 │         - Generate answer                                        │
 │         - Format response                                        │
-└────────────────────────┬────────────────────────────────────────┘
+└────────────────────────┬─────────────────────────────────────────┘
                          │
                          ▼
-┌─────────────────────────────────────────────────────────────────┐
-│          RAG SYSTEM (src/core/rag_system.py)                    │
-│                                                                   │
-│  LLM with Tools (ReAct Pattern):                                │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
-│  │   search_    │  │    count_    │  │     list_    │          │
-│  │  champion_   │  │  champions   │  │  champions   │          │
-│  │    info      │  │              │  │              │          │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘          │
+┌──────────────────────────────────────────────────────────────────┐
+│          RAG SYSTEM (src/core/rag_system.py)                     │
+│                                                                  │
+│  LLM with Tools (ReAct Pattern):                                 │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐            │
+│  │   search_    │  │    count_    │  │     list_    │            │
+│  │  champion_   │  │  champions   │  │  champions   │            │
+│  │    info      │  │              │  │              │            │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘            │
 │         └─────────────────┴─────────────────┘                    │
-│                         │                                         │
-│                         ▼                                         │
+│                         │                                        │
+│                         ▼                                        │
 │              VECTOR STORE (ChromaDB)                             │
 │              - 172 champions                                     │
 │              - 711 chunks                                        │
-└────────────────────────┬────────────────────────────────────────┘
+└────────────────────────┬─────────────────────────────────────────┘
                          │
                          ▼
-┌─────────────────────────────────────────────────────────────────┐
-│       DATA COLLECTION (src/data/collector.py)                   │
-│       - Data Dragon API (Riot Games)                            │
-│       - Web Scraper (League Wiki)                               │
-│       - Sample Data (Fallback)                                  │
-└─────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│       DATA COLLECTION (src/data/collector.py)                    │
+│       - Data Dragon API (Riot Games)                             │
+│       - Web Scraper (League Wiki)                                │
+│       - Sample Data (Fallback)                                   │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
 ### Component Architecture
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│                    APPLICATION LAYER                              │
-│                                                                   │
+│                    APPLICATION LAYER                             │
+│                                                                  │
 │  app.py                                                          │
-│  ├─ handle_user_input()      → Process user messages            │
+│  ├─ handle_user_input()      → Process user messages             │
 │  ├─ process_query()           → Invoke workflow                  │
 │  ├─ render_sidebar()          → Display conversation controls    │
-│  └─ initialize_systems()      → Setup RAG + Workflow            │
+│  └─ initialize_systems()      → Setup RAG + Workflow             │
 └────────────────────────┬─────────────────────────────────────────┘
                          │
 ┌────────────────────────┼─────────────────────────────────────────┐
-│              ORCHESTRATION LAYER                                  │
-│                                                                   │
+│              ORCHESTRATION LAYER                                 │
+│                                                                  │
 │  src/core/workflow.py (LangGraph)                                │
-│  ├─ _extract_question()       → Get user question               │
-│  ├─ _generate_answer()        → Call RAG system                 │
-│  └─ _format_response()        → Format for display              │
+│  ├─ _extract_question()       → Get user question                │
+│  ├─ _generate_answer()        → Call RAG system                  │
+│  └─ _format_response()        → Format for display               │
 └────────────────────────┬─────────────────────────────────────────┘
                          │
 ┌────────────────────────┼─────────────────────────────────────────┐
-│                    RAG LAYER                                      │
-│                                                                   │
+│                    RAG LAYER                                     │
+│                                                                  │
 │  src/core/rag_system.py                                          │
 │  ├─ query()                   → Main query processing            │
 │  ├─ _create_tools()           → Define available tools           │
@@ -161,23 +161,23 @@ The application demonstrates modern AI development practices including:
 └────────────────────────┬─────────────────────────────────────────┘
                          │
 ┌────────────────────────┼─────────────────────────────────────────┐
-│                   DATA LAYER                                      │
-│                                                                   │
-│  src/data/collector.py + src/data/sources/*                     │
-│  ├─ DataDragonCollector      → Fetch champions from Riot        │
-│  ├─ WebScraperCollector       → Scrape wiki content             │
-│  ├─ SampleDataCollector       → Fallback data                   │
-│  └─ RiotAPICollector          → Live API data (optional)        │
+│                   DATA LAYER                                     │
+│                                                                  │
+│  src/data/collector.py + src/data/sources/*                      │
+│  ├─ DataDragonCollector      → Fetch champions from Riot         │
+│  ├─ WebScraperCollector       → Scrape wiki content              │
+│  ├─ SampleDataCollector       → Fallback data                    │
+│  └─ RiotAPICollector          → Live API data (optional)         │
 └────────────────────────┬─────────────────────────────────────────┘
                          │
 ┌────────────────────────┼─────────────────────────────────────────┐
-│                  STORAGE LAYER                                    │
-│                                                                   │
+│                  STORAGE LAYER                                   │
+│                                                                  │
 │  ChromaDB (Vector Database)                                      │
 │  ├─ 172 unique champions                                         │
 │  ├─ 711 document chunks                                          │
 │  ├─ 1536-dim embeddings                                          │
-│  └─ Metadata: {type, champion, role, source}                    │
+│  └─ Metadata: {type, champion, role, source}                     │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
