@@ -1,49 +1,126 @@
-# 📚 LOLQA Documentation
+# 📚 LOLQA Documentation Index
+
+> Complete documentation hub for the LOLQA project
 
 Welcome to the LOLQA project documentation! This directory contains all the documentation you need to understand, use, and contribute to the project.
 
 ---
 
-## 🚀 Getting Started
+## 🚀 Quick Navigation
 
-Start here if you're new to the project:
+### 🎯 For New Users
+1. **[Quick Start Guide](QUICKSTART.md)** - Get running in 5 minutes
+2. **[Project Guide](PROJECT_GUIDE.md)** - Complete project overview
+3. **[API Keys Setup](API_KEYS_SETUP.md)** - Configure your API keys
 
-- **[Quick Start Guide](QUICKSTART.md)** - Get up and running in 5 minutes
-- **[API Keys Setup](API_KEYS_SETUP.md)** - Configure your OpenAI and optional API keys
+### 🏗️ For Developers
+1. **[Architecture Guide](ARCHITECTURE.md)** - System design and microservices
+2. **[Development Guide](DEVELOPMENT.md)** - Development setup and workflow
+3. **[Testing Guide](TESTING.md)** - Testing practices and examples
+4. **[Deployment Guide](DEPLOYMENT.md)** - Deploy to production
 
----
-
-## 📖 Project Documentation
-
-Learn about the project's architecture and features:
-
-- **[Project Guide](PROJECT_GUIDE.md)** - **⭐ START HERE** - Comprehensive guide covering:
-  - What is LOLQA?
-  - Architecture & design
-  - Tech stack & components
-  - How it works (with diagrams)
-  - Project structure
-  - Quick start
-  - Use cases & examples
+### 📖 For Contributors
+1. **[Development Guide](DEVELOPMENT.md)** - Contribution guidelines
+2. **[Testing Guide](TESTING.md)** - Write tests for new features
+3. **[Architecture Guide](ARCHITECTURE.md)** - Understand system design
 
 ---
 
-## 🔧 Development Guides
+## 📋 Complete Documentation Index
 
-For developers working on or extending the project:
+### Getting Started
 
-- **[Testing Guide](TESTING.md)** - How to run and write tests
+| Document | Description | Best For |
+|----------|-------------|----------|
+| [QUICKSTART.md](QUICKSTART.md) | 5-minute quick start guide | Getting started quickly |
+| [API_KEYS_SETUP.md](API_KEYS_SETUP.md) | API key configuration | Setup & configuration |
+| [PROJECT_GUIDE.md](PROJECT_GUIDE.md) | Complete project overview | Understanding the project |
+
+### Architecture & Design
+
+| Document | Description | Best For |
+|----------|-------------|----------|
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Microservices architecture guide | Understanding system design |
+| [PROJECT_GUIDE.md](PROJECT_GUIDE.md) | Project overview with architecture | High-level understanding |
+
+### Development
+
+| Document | Description | Best For |
+|----------|-------------|----------|
+| [DEVELOPMENT.md](DEVELOPMENT.md) | Development setup and workflow | Setting up development environment |
+| [TESTING.md](TESTING.md) | Testing guide | Writing & running tests |
+| [DATA_COLLECTION.md](DATA_COLLECTION.md) | Data collection system | Understanding data sources |
+
+### Deployment
+
+| Document | Description | Best For |
+|----------|-------------|----------|
+| [DEPLOYMENT.md](DEPLOYMENT.md) | Deployment guide | Deploying to production |
+| [kubernetes/README.md](../kubernetes/README.md) | Kubernetes deployment | K8s-specific deployment |
+
+---
+
+## 📖 Documentation by Topic
+
+### 🏗️ Architecture
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** - Complete microservices architecture
+  - Service overview
+  - Data flow diagrams
+  - Infrastructure components
+  - Technology stack
+  - Scalability & performance
+
+### 💻 Development
+- **[DEVELOPMENT.md](DEVELOPMENT.md)** - Development guide
+  - Setup instructions
+  - Development workflow
+  - Code standards
+  - Adding new features
+  - Debugging
+
+### 🧪 Testing
+- **[TESTING.md](TESTING.md)** - Testing guide
   - Running tests
-  - Writing new tests
+  - Writing tests
   - Test coverage
-  - Best practices
+  - Microservices testing
   - CI/CD integration
 
-- **[Data Collection](DATA_COLLECTION.md)** - How data is collected and processed
-  - Quick start (no config needed)
-  - Data sources (Data Dragon, Web Scraper, etc.)
-  - Configuration options
-  - Adding new data sources
+### 🚀 Deployment
+- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Deployment guide
+  - Local development
+  - Docker deployment
+  - Kubernetes deployment
+  - Cloud platforms
+  - Production checklist
+
+### 📊 Data
+- **[DATA_COLLECTION.md](DATA_COLLECTION.md)** - Data collection
+  - Data sources
+  - Configuration
+  - Adding new sources
+
+---
+
+## 🎓 Learning Path
+
+### Beginner Path
+1. Read [QUICKSTART.md](QUICKSTART.md) - Get started
+2. Run the application locally
+3. Ask simple questions to the chatbot
+4. Read [PROJECT_GUIDE.md](PROJECT_GUIDE.md) - Understand basics
+
+### Intermediate Path
+1. Read [ARCHITECTURE.md](ARCHITECTURE.md) - Understand architecture
+2. Read [DEVELOPMENT.md](DEVELOPMENT.md) - Set up development
+3. Read [DATA_COLLECTION.md](DATA_COLLECTION.md) - Understand data
+4. Explore the codebase
+
+### Advanced Path
+1. Read [ARCHITECTURE.md](ARCHITECTURE.md) - Deep dive into design
+2. Read [TESTING.md](TESTING.md) - Write comprehensive tests
+3. Read [DEPLOYMENT.md](DEPLOYMENT.md) - Deploy to production
+4. Contribute new features
 
 ---
 
@@ -51,72 +128,23 @@ For developers working on or extending the project:
 
 Historical documentation (for reference):
 
-- **[archive/](archive/)** - Historical documents
-  - Migration guides
-  - Reorganization summaries
-  - Testing implementation details
+- **[archive/MIGRATION_GUIDE.md](archive/MIGRATION_GUIDE.md)** - Migration from monolithic to microservices
+- **[archive/REFACTORING_SUMMARY.md](archive/REFACTORING_SUMMARY.md)** - Refactoring summary
+- **[archive/NEXT_STEPS_IMPLEMENTATION.md](archive/NEXT_STEPS_IMPLEMENTATION.md)** - Implementation summary
+- **[archive/MICROSERVICES_README.md](archive/MICROSERVICES_README.md)** - Original microservices README
+- **[archive/TESTING_GUIDE.md](archive/TESTING_GUIDE.md)** - Original testing guide
+- **[archive/TESTING_SUMMARY.md](archive/TESTING_SUMMARY.md)** - Testing implementation summary
+- **[archive/REORGANIZATION_SUMMARY.md](archive/REORGANIZATION_SUMMARY.md)** - Previous reorganization summary
 
 ---
 
-## 📋 Documentation Index
-
-### Main Documentation
-| Document | Description | Best For |
-|----------|-------------|----------|
-| [PROJECT_GUIDE.md](PROJECT_GUIDE.md) | Complete project overview & architecture | Understanding the project |
-| [QUICKSTART.md](QUICKSTART.md) | 5-minute quick start | Getting started quickly |
-| [API_KEYS_SETUP.md](API_KEYS_SETUP.md) | API key configuration | Setup & configuration |
-
-### Development
-| Document | Description | Best For |
-|----------|-------------|----------|
-| [TESTING.md](TESTING.md) | Testing guide | Writing & running tests |
-| [DATA_COLLECTION.md](DATA_COLLECTION.md) | Data collection system | Understanding data sources |
-
-### Historical
-| Document | Description | Best For |
-|----------|-------------|----------|
-| [archive/MIGRATION_GUIDE.md](archive/MIGRATION_GUIDE.md) | Migration instructions | Reference only |
-| [archive/REORGANIZATION_SUMMARY.md](archive/REORGANIZATION_SUMMARY.md) | Reorganization details | Reference only |
-| [archive/TESTING_SUMMARY.md](archive/TESTING_SUMMARY.md) | Testing implementation | Reference only |
-
----
-
-## 🎯 Quick Links
-
-### For New Users
-1. Start with [QUICKSTART.md](QUICKSTART.md)
-2. Read [PROJECT_GUIDE.md](PROJECT_GUIDE.md) for full understanding
-3. Configure API keys using [API_KEYS_SETUP.md](API_KEYS_SETUP.md)
-
-### For Developers
-1. Understand architecture in [PROJECT_GUIDE.md](PROJECT_GUIDE.md)
-2. Learn testing in [TESTING.md](TESTING.md)
-3. Understand data in [DATA_COLLECTION.md](DATA_COLLECTION.md)
-
-### For Contributors
-1. Read [PROJECT_GUIDE.md](PROJECT_GUIDE.md) - Architecture & design section
-2. Follow [TESTING.md](TESTING.md) - Write tests for new features
-3. Update documentation when adding features
-
----
-
-## 📊 Documentation Statistics
-
-- **Active Documentation**: 5 files
-- **Archived Documentation**: 3 files
-- **Total Lines**: ~3,500 lines
-- **Last Updated**: December 2025
-- **Coverage**: Complete
-
----
-
-## 🔗 External Links
+## 🔗 External Resources
 
 ### API Documentation
 - [LangChain Documentation](https://python.langchain.com/)
 - [LangGraph Documentation](https://langchain-ai.github.io/langgraph/)
 - [OpenAI API](https://platform.openai.com/docs)
+- [FastAPI Documentation](https://fastapi.tiangolo.com/)
 - [Riot Games Data Dragon](https://developer.riotgames.com/docs/lol#data-dragon)
 - [ChromaDB Documentation](https://docs.trychroma.com/)
 - [Streamlit Documentation](https://docs.streamlit.io/)
@@ -133,10 +161,12 @@ Historical documentation (for reference):
 
 ### Finding Information Quickly
 
-- **Architecture questions**: See [PROJECT_GUIDE.md](PROJECT_GUIDE.md) → Architecture section
+- **Architecture questions**: See [ARCHITECTURE.md](ARCHITECTURE.md)
 - **Setup help**: See [QUICKSTART.md](QUICKSTART.md) or [API_KEYS_SETUP.md](API_KEYS_SETUP.md)
 - **Testing help**: See [TESTING.md](TESTING.md)
+- **Deployment help**: See [DEPLOYMENT.md](DEPLOYMENT.md)
 - **Data questions**: See [DATA_COLLECTION.md](DATA_COLLECTION.md)
+- **Development help**: See [DEVELOPMENT.md](DEVELOPMENT.md)
 
 ### Suggesting Improvements
 
@@ -147,39 +177,29 @@ Found something missing or unclear? Please:
 
 ---
 
-## ✨ What's New
+## 📊 Documentation Statistics
 
-### December 2025
-- ✅ **Documentation Consolidation**: Merged duplicate files into comprehensive PROJECT_GUIDE.md
-- ✅ **Archived Historical Docs**: Moved migration guides to archive/
-- ✅ **Enhanced DATA_COLLECTION.md**: Added quick start section
-- ✅ **Improved Navigation**: Clearer documentation structure
-
-### Recent Additions
-- ✅ **PROJECT_GUIDE.md**: Comprehensive all-in-one guide
-- ✅ **TESTING.md**: Complete testing documentation  
-- ✅ **CI/CD Integration**: Automated testing with GitHub Actions
+- **Active Documentation**: 8 files
+- **Archived Documentation**: 7 files
+- **Total Lines**: ~5,000+ lines
+- **Last Updated**: December 2025
+- **Coverage**: Complete
 
 ---
 
-## 🎓 Learning Path
+## ✨ What's New
 
-### Beginner
-1. Read [QUICKSTART.md](QUICKSTART.md)
-2. Run the application
-3. Ask simple questions to the chatbot
+### December 2025
+- ✅ **Documentation Reorganization**: Consolidated and reorganized all documentation
+- ✅ **New Guides**: Added ARCHITECTURE.md, DEPLOYMENT.md, DEVELOPMENT.md
+- ✅ **Improved Navigation**: Clearer documentation structure
+- ✅ **Archive Organization**: Moved historical docs to archive/
 
-### Intermediate
-1. Read [PROJECT_GUIDE.md](PROJECT_GUIDE.md) - How It Works section
-2. Understand RAG architecture
-3. Read [DATA_COLLECTION.md](DATA_COLLECTION.md)
-4. Explore the codebase
-
-### Advanced
-1. Read [PROJECT_GUIDE.md](PROJECT_GUIDE.md) - Architecture & Components sections
-2. Read [TESTING.md](TESTING.md)
-3. Write tests for new features
-4. Contribute new features
+### Recent Additions
+- ✅ **ARCHITECTURE.md**: Complete microservices architecture guide
+- ✅ **DEPLOYMENT.md**: Comprehensive deployment guide
+- ✅ **DEVELOPMENT.md**: Development setup and workflow guide
+- ✅ **Enhanced TESTING.md**: Added microservices testing section
 
 ---
 
