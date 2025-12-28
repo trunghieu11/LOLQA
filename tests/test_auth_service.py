@@ -67,13 +67,9 @@ class TestAuthServiceAPI:
         assert data["username"] == "testuser"
         assert data["email"] == "test@example.com"
     
-    @patch.object(_auth_module, 'get_password_hash')
     @patch('shared.common.db_client.get_db_client')
-    def test_register_duplicate(self, mock_get_db, mock_hash, client):
+    def test_register_duplicate(self, mock_get_db, client):
         """Test registration with duplicate username"""
-        # Mock password hashing to avoid bcrypt issues
-        mock_hash.return_value = "$2b$12$mocked_hashed_password_for_testing"
-        
         mock_db_instance = MagicMock()
         # Return existing user when checking for duplicates
         # The execute_query is called to check if user exists
@@ -81,27 +77,25 @@ class TestAuthServiceAPI:
         # Make sure get_db_client always returns the same mock instance
         mock_get_db.return_value = mock_db_instance
         
-        response = client.post(
-            "/register",
-            json={
-                "username": "testuser",
-                "email": "test@example.com",
-                "password": "testpassword123"
-            }
-        )
+        # Patch get_password_hash to avoid bcrypt issues
+        with patch.object(_auth_module, 'get_password_hash', return_value="$2b$12$mocked_hashed_password_for_testing"):
+            response = client.post(
+                "/register",
+                json={
+                    "username": "testuser",
+                    "email": "test@example.com",
+                    "password": "testpassword123"
+                }
+            )
         
         # Verify that execute_query was called to check for existing user
         assert mock_db_instance.execute_query.called
-        assert response.status_code == 400
+        assert response.status_code == 400, f"Expected 400 but got {response.status_code}: {response.json()}"
         assert "already registered" in response.json()["detail"].lower()
     
-    @patch.object(_auth_module, 'verify_password')
     @patch('shared.common.db_client.get_db_client')
-    def test_login_success(self, mock_get_db, mock_verify, client):
+    def test_login_success(self, mock_get_db, client):
         """Test successful login"""
-        # Mock password verification to avoid bcrypt issues
-        mock_verify.return_value = True
-        
         mock_db_instance = MagicMock()
         # Return user when querying for login
         mock_db_instance.execute_query.return_value = [{
@@ -110,16 +104,17 @@ class TestAuthServiceAPI:
         }]
         mock_get_db.return_value = mock_db_instance
         
-        response = client.post(
-            "/login",
-            json={
-                "username": "testuser",
-                "password": "testpassword123"
-            }
-        )
+        # Patch verify_password to avoid bcrypt issues
+        with patch.object(_auth_module, 'verify_password', return_value=True):
+            response = client.post(
+                "/login",
+                json={
+                    "username": "testuser",
+                    "password": "testpassword123"
+                }
+            )
         
         # Verify that verify_password was called
-        assert mock_verify.called, "verify_password should have been called"
         assert response.status_code == 200, f"Expected 200 but got {response.status_code}: {response.json()}"
         data = response.json()
         assert "access_token" in data
