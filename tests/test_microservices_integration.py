@@ -1,12 +1,18 @@
 """Integration tests for microservices"""
 import pytest
 from unittest.mock import Mock, patch, MagicMock, AsyncMock
-import httpx
 import sys
 from pathlib import Path
 
 # Add paths
-sys.path.insert(0, str(Path(__file__).parent.parent))
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
+
+try:
+    import httpx
+except ImportError:
+    httpx = None
+    pytest.skip("httpx not installed", allow_module_level=True)
 
 
 class TestMicroservicesIntegration:
@@ -45,7 +51,7 @@ class TestMicroservicesIntegration:
         }
     
     @patch('httpx.Client')
-    def test_ui_to_rag_flow(self, mock_httpx, mock_rag_service):
+    def test_ui_to_rag_flow(self, mock_httpx_class, mock_rag_service):
         """Test UI service calling RAG service"""
         # Mock HTTP client
         mock_client = MagicMock()
@@ -54,23 +60,25 @@ class TestMicroservicesIntegration:
         mock_response.json.return_value = mock_rag_service["/query"]
         mock_response.raise_for_status = MagicMock()
         mock_client.post.return_value = mock_response
-        mock_httpx.return_value.__enter__.return_value = mock_client
+        mock_httpx_class.return_value.__enter__.return_value = mock_client
         
-        # Simulate UI service calling RAG service
-        response = httpx.post(
-            "http://rag-service:8000/query",
-            json={
-                "question": "What are Ahri's abilities?",
-                "conversation_history": None
-            }
-        )
+        # Simulate UI service calling RAG service (mocked)
+        with mock_httpx_class() as client:
+            response = client.post(
+                "http://rag-service:8000/query",
+                json={
+                    "question": "What are Ahri's abilities?",
+                    "conversation_history": None
+                }
+            )
         
         assert response.status_code == 200
         data = response.json()
         assert "answer" in data
     
+    @pytest.mark.asyncio
     @patch('httpx.AsyncClient')
-    async def test_rag_to_llm_flow(self, mock_httpx, mock_llm_service):
+    async def test_rag_to_llm_flow(self, mock_httpx_class, mock_llm_service):
         """Test RAG service calling LLM service"""
         # Mock async HTTP client
         mock_client = MagicMock()
@@ -79,10 +87,11 @@ class TestMicroservicesIntegration:
         mock_response.json.return_value = mock_llm_service["/chat"]
         mock_response.raise_for_status = MagicMock()
         mock_client.post = AsyncMock(return_value=mock_response)
-        mock_httpx.return_value.__aenter__.return_value = mock_client
+        mock_httpx_class.return_value.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_httpx_class.return_value.__aexit__ = AsyncMock(return_value=None)
         
-        # Simulate RAG service calling LLM service
-        async with httpx.AsyncClient() as client:
+        # Simulate RAG service calling LLM service (mocked)
+        async with mock_httpx_class() as client:
             response = await client.post(
                 "http://llm-service:8000/chat",
                 json={
@@ -96,8 +105,9 @@ class TestMicroservicesIntegration:
         data = response.json()
         assert "content" in data
     
+    @pytest.mark.asyncio
     @patch('httpx.AsyncClient')
-    async def test_pipeline_to_llm_flow(self, mock_httpx, mock_llm_service):
+    async def test_pipeline_to_llm_flow(self, mock_httpx_class, mock_llm_service):
         """Test Data Pipeline service calling LLM service for embeddings"""
         # Mock async HTTP client
         mock_client = MagicMock()
@@ -106,10 +116,11 @@ class TestMicroservicesIntegration:
         mock_response.json.return_value = mock_llm_service["/embeddings"]
         mock_response.raise_for_status = MagicMock()
         mock_client.post = AsyncMock(return_value=mock_response)
-        mock_httpx.return_value.__aenter__.return_value = mock_client
+        mock_httpx_class.return_value.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_httpx_class.return_value.__aexit__ = AsyncMock(return_value=None)
         
-        # Simulate pipeline service calling LLM service
-        async with httpx.AsyncClient() as client:
+        # Simulate pipeline service calling LLM service (mocked)
+        async with mock_httpx_class() as client:
             response = await client.post(
                 "http://llm-service:8000/embeddings",
                 json={
