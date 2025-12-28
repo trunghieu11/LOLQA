@@ -41,44 +41,40 @@ class TestAuthServiceAPI:
         data = response.json()
         assert data["service"] == "auth-service"
     
-    @patch('shared.common.db_client.get_db_client')
-    @patch.object(_auth_module, 'get_password_hash')
-    def test_register_success(self, mock_hash, mock_get_db, client):
+    def test_register_success(self, client):
         """Test successful user registration"""
-        # Mock password hashing to avoid bcrypt issues
-        mock_hash.return_value = "$2b$12$mocked_hashed_password_for_testing"
-        
         mock_db_instance = MagicMock()
         mock_db_instance.execute_query.return_value = []  # No existing user
         mock_db_instance.execute_update.return_value = True
-        mock_get_db.return_value = mock_db_instance
         
-        response = client.post(
-            "/register",
-            json={
-                "username": "testuser",
-                "email": "test@example.com",
-                "password": "testpassword123"
-            }
-        )
+        # Patch get_db_client and get_password_hash in the auth module's namespace
+        with patch.object(auth_module, 'get_db_client', return_value=mock_db_instance), \
+             patch.object(auth_module, 'get_password_hash', return_value="$2b$12$mocked_hashed_password_for_testing"):
+            response = client.post(
+                "/register",
+                json={
+                    "username": "testuser",
+                    "email": "test@example.com",
+                    "password": "testpassword123"
+                }
+            )
         
         assert response.status_code == 200
         data = response.json()
         assert data["username"] == "testuser"
         assert data["email"] == "test@example.com"
     
-    @patch('shared.common.db_client.get_db_client')
-    def test_register_duplicate(self, mock_get_db, client):
+    def test_register_duplicate(self, client):
         """Test registration with duplicate username"""
         mock_db_instance = MagicMock()
         # Return existing user when checking for duplicates
         # The execute_query is called to check if user exists
         mock_db_instance.execute_query.return_value = [{"username": "testuser", "email": "test@example.com"}]
-        # Make sure get_db_client always returns the same mock instance
-        mock_get_db.return_value = mock_db_instance
         
-        # Patch get_password_hash to avoid bcrypt issues
-        with patch.object(_auth_module, 'get_password_hash', return_value="$2b$12$mocked_hashed_password_for_testing"):
+        # Patch get_db_client in the auth module's namespace (where it's used)
+        # Also patch get_password_hash to avoid bcrypt issues
+        with patch.object(auth_module, 'get_db_client', return_value=mock_db_instance), \
+             patch.object(auth_module, 'get_password_hash', return_value="$2b$12$mocked_hashed_password_for_testing"):
             response = client.post(
                 "/register",
                 json={
@@ -93,8 +89,7 @@ class TestAuthServiceAPI:
         assert response.status_code == 400, f"Expected 400 but got {response.status_code}: {response.json()}"
         assert "already registered" in response.json()["detail"].lower()
     
-    @patch('shared.common.db_client.get_db_client')
-    def test_login_success(self, mock_get_db, client):
+    def test_login_success(self, client):
         """Test successful login"""
         mock_db_instance = MagicMock()
         # Return user when querying for login
@@ -102,10 +97,10 @@ class TestAuthServiceAPI:
             "username": "testuser",
             "hashed_password": "$2b$12$mocked_hashed_password_for_testing"
         }]
-        mock_get_db.return_value = mock_db_instance
         
-        # Patch verify_password to avoid bcrypt issues
-        with patch.object(_auth_module, 'verify_password', return_value=True):
+        # Patch get_db_client and verify_password in the auth module's namespace
+        with patch.object(auth_module, 'get_db_client', return_value=mock_db_instance), \
+             patch.object(auth_module, 'verify_password', return_value=True):
             response = client.post(
                 "/login",
                 json={
@@ -120,51 +115,51 @@ class TestAuthServiceAPI:
         assert "access_token" in data
         assert data["token_type"] == "bearer"
     
-    @patch('shared.common.db_client.get_db_client')
-    def test_login_invalid_credentials(self, mock_get_db, client):
+    def test_login_invalid_credentials(self, client):
         """Test login with invalid credentials"""
         mock_db_instance = MagicMock()
         mock_db_instance.execute_query.return_value = []  # User not found
-        mock_get_db.return_value = mock_db_instance
         
-        response = client.post(
-            "/login",
-            json={
-                "username": "testuser",
-                "password": "wrongpassword"
-            }
-        )
+        # Patch get_db_client in the auth module's namespace
+        with patch.object(auth_module, 'get_db_client', return_value=mock_db_instance):
+            response = client.post(
+                "/login",
+                json={
+                    "username": "testuser",
+                    "password": "wrongpassword"
+                }
+            )
         
         assert response.status_code == 401
     
-    @patch('shared.common.db_client.get_db_client')
-    def test_get_current_user(self, mock_get_db, client):
+    def test_get_current_user(self, client):
         """Test getting current user info"""
         # Override the verify_token dependency
         def mock_verify_token():
             return {"sub": "testuser", "exp": 9999999999}
         
+        mock_db_instance = MagicMock()
+        mock_db_instance.execute_query.return_value = [{
+            "username": "testuser",
+            "email": "test@example.com"
+        }]
+        
+        # Override dependency and patch get_db_client
         app.dependency_overrides[auth_module.verify_token] = mock_verify_token
         
         try:
-            mock_db_instance = MagicMock()
-            mock_db_instance.execute_query.return_value = [{
-                "username": "testuser",
-                "email": "test@example.com"
-            }]
-            mock_get_db.return_value = mock_db_instance
-            
-            # Create a dummy token (won't be validated due to mock)
-            token = "dummy_token_for_testing"
-            
-            response = client.get(
-                "/me",
-                headers={"Authorization": f"Bearer {token}"}
-            )
-            
-            assert response.status_code == 200
-            data = response.json()
-            assert data["username"] == "testuser"
+            with patch.object(auth_module, 'get_db_client', return_value=mock_db_instance):
+                # Create a dummy token (won't be validated due to mock)
+                token = "dummy_token_for_testing"
+                
+                response = client.get(
+                    "/me",
+                    headers={"Authorization": f"Bearer {token}"}
+                )
+                
+                assert response.status_code == 200
+                data = response.json()
+                assert data["username"] == "testuser"
         finally:
             # Clean up dependency override
             app.dependency_overrides.clear()
