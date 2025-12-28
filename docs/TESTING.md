@@ -1,6 +1,8 @@
 # 🧪 Testing Guide
 
-This document explains how to run and write tests for the LOLQA project.
+> Complete guide for testing the LOLQA microservices application
+
+---
 
 ## 📋 Table of Contents
 
@@ -9,7 +11,10 @@ This document explains how to run and write tests for the LOLQA project.
 3. [Running Tests](#running-tests)
 4. [Writing Tests](#writing-tests)
 5. [Test Coverage](#test-coverage)
-6. [Continuous Integration](#continuous-integration)
+6. [Test Categories](#test-categories)
+7. [Mocking & Fixtures](#mocking--fixtures)
+8. [Continuous Integration](#continuous-integration)
+9. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -49,29 +54,58 @@ pytest tests/test_utils.py::TestFormatDocuments::test_format_documents_basic
 tests/
 ├── __init__.py
 ├── conftest.py                    # Shared fixtures and configuration
+├── import_helpers.py              # Helper for importing service modules
+│
+├── # Core Component Tests
 ├── test_utils.py                  # Unit tests for utilities
 ├── test_config.py                 # Unit tests for configuration
 ├── test_data_collectors.py        # Unit tests for data collectors
 ├── test_rag_system.py            # Unit tests for RAG system
 ├── test_workflow.py              # Unit tests for workflow
-├── test_integration.py           # Integration tests
+│
+├── # Microservices Tests
+├── test_llm_service.py           # LLM Service API tests
+├── test_rag_service.py           # RAG Service API tests
+├── test_data_pipeline_service.py  # Data Pipeline Service tests
+├── test_auth_service.py          # Auth Service API tests
+│
+├── # Infrastructure Tests
+├── test_redis_client.py          # Redis client tests
+├── test_db_client.py             # PostgreSQL client tests
+├── test_metrics.py               # Prometheus metrics tests
+│
+├── # Integration Tests
+├── test_integration.py           # End-to-end integration tests
+├── test_microservices_integration.py  # Service-to-service tests
+│
 └── data/                         # Test data files
     └── sample_data.json
 ```
 
-### Test Categories
+## 🏷️ Test Categories
 
-#### 1. **Unit Tests**
+### 1. **Unit Tests**
 Test individual components in isolation:
 - `test_utils.py`: Helper functions
 - `test_config.py`: Configuration classes
 - `test_data_collectors.py`: Data collection classes
 - `test_rag_system.py`: RAG system methods
 - `test_workflow.py`: LangGraph workflow
+- `test_redis_client.py`: Redis operations
+- `test_db_client.py`: Database operations
+- `test_metrics.py`: Metrics collection
 
-#### 2. **Integration Tests**
+### 2. **Service Tests**
+Test microservice API endpoints:
+- `test_llm_service.py`: LLM Service endpoints
+- `test_rag_service.py`: RAG Service endpoints
+- `test_data_pipeline_service.py`: Data Pipeline Service endpoints
+- `test_auth_service.py`: Auth Service endpoints
+
+### 3. **Integration Tests**
 Test multiple components working together:
 - `test_integration.py`: End-to-end workflows
+- `test_microservices_integration.py`: Service-to-service communication
 
 ---
 
@@ -407,6 +441,78 @@ pytest -s
 
 ---
 
+## 🧪 Testing Microservices
+
+### Service-Specific Testing
+
+#### Testing LLM Service
+
+```python
+from fastapi.testclient import TestClient
+from services.llm_service.main import app
+
+def test_llm_service_health():
+    client = TestClient(app)
+    response = client.get("/health")
+    assert response.status_code == 200
+```
+
+#### Testing RAG Service
+
+```python
+from fastapi.testclient import TestClient
+from services.rag_service.main import app
+
+def test_rag_query():
+    client = TestClient(app)
+    response = client.post("/query", json={"question": "test"})
+    assert response.status_code == 200
+```
+
+#### Testing with Mocks
+
+```python
+from unittest.mock import patch, MagicMock
+
+@patch('services.llm_service.main.llm_client')
+def test_with_mocked_llm(mock_llm):
+    mock_llm.chat = MagicMock(return_value="mocked response")
+    # Test code
+```
+
+### Common Fixtures
+
+Available in `conftest.py`:
+- `mock_redis_client` - Mock Redis client
+- `mock_db_client` - Mock PostgreSQL client
+- `mock_llm_service_response` - Mock LLM responses
+- `mock_rag_service_response` - Mock RAG responses
+- `mock_jwt_token` - Mock JWT tokens
+- `sample_documents` - Sample documents for testing
+
+### Testing Async Services
+
+```python
+import pytest
+
+@pytest.mark.asyncio
+async def test_async_endpoint():
+    async with AsyncClient(app=app, base_url="http://test") as ac:
+        response = await ac.get("/endpoint")
+        assert response.status_code == 200
+```
+
+### Coverage for Microservices
+
+```bash
+# Test all services
+pytest --cov=src --cov=shared --cov=services --cov-report=html
+
+# Current coverage: 43%+ (target: 40% minimum)
+```
+
+---
+
 ## 🆘 Troubleshooting
 
 ### Import Errors
@@ -420,6 +526,35 @@ source venv/bin/activate
 
 # Install in development mode
 pip install -e .
+```
+
+### Service Module Import Issues
+
+For services with hyphenated names (e.g., `auth-service`):
+```python
+from tests.import_helpers import import_service_module
+auth_module = import_service_module("auth-service", "main")
+```
+
+### Async Test Issues
+
+Use `pytest-asyncio`:
+```python
+@pytest.mark.asyncio
+async def test_async():
+    result = await async_function()
+    assert result is not None
+```
+
+### Database Connection Issues
+
+Use mocks for database operations in unit tests:
+```python
+@patch('shared.common.db_client.get_db_client')
+def test_with_mock_db(mock_get_db):
+    mock_db = MagicMock()
+    mock_get_db.return_value = mock_db
+    # Test code
 ```
 
 ### Slow Tests

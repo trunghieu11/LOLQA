@@ -1,171 +1,250 @@
 # ⚔️ LOLQA - League of Legends Q&A Application
 
-A comprehensive Q&A application about League of Legends built with **LangChain**, **LangGraph**, and **LangSmith**. This application uses Retrieval Augmented Generation (RAG) to answer questions about champions, abilities, game mechanics, and strategies.
+> **Production-Ready Microservices Architecture** with RAG, LangGraph, and comprehensive testing
 
-## 🚀 Features
+A comprehensive Q&A application about League of Legends built with **LangChain**, **LangGraph**, and modern microservices architecture. This application uses Retrieval Augmented Generation (RAG) to answer questions about champions, abilities, game mechanics, and strategies.
 
-- **RAG System**: Vector-based retrieval for accurate answers from League of Legends knowledge base
-- **LangGraph Workflow**: Orchestrated Q&A process with state management
-- **LangSmith Integration**: Monitoring and tracing of all LLM calls
-- **Streamlit UI**: Beautiful, interactive web interface
-- **Deployment Ready**: Docker and cloud deployment configurations included
+---
 
-## 📋 Prerequisites
+## 🚀 Quick Start
+
+### Prerequisites
 
 - Python 3.11+
-- OpenAI API key ([How to get one →](API_KEYS_SETUP.md#-getting-your-openai-api-key))
-- LangSmith API key (optional but recommended) ([How to get one →](API_KEYS_SETUP.md#-getting-your-langsmith-api-key))
+- Docker and Docker Compose (for microservices)
+- OpenAI API key
 
-> 📖 **Need help getting API keys?** See the detailed [API Keys Setup Guide](API_KEYS_SETUP.md) for step-by-step instructions.
+### 5-Minute Setup
 
-## 🛠️ Installation
-
-1. **Clone the repository** (or navigate to the project directory)
-
-2. **Install dependencies**:
+1. **Clone and setup**:
 ```bash
+git clone <repository-url>
+cd LOLQA
+cp .env.example .env
+# Edit .env with your OPENAI_API_KEY
+```
+
+2. **Start all services**:
+```bash
+docker-compose up --build
+```
+
+3. **Access the application**:
+- **UI**: http://localhost:8501
+- **API Gateway**: http://localhost:80
+- **Traefik Dashboard**: http://localhost:8080
+
+4. **Ingest data** (first time):
+```bash
+curl -X POST http://localhost:8003/ingest
+```
+
+> 📖 **Need more details?** See the [Quick Start Guide](docs/QUICKSTART.md)
+
+---
+
+## ✨ Key Features
+
+### 🧠 Intelligent Q&A
+- Answer questions about **172 League of Legends champions**
+- Provide detailed information (abilities, stats, skins, lore)
+- Conversation memory for context-aware responses
+- No hallucination - strictly uses knowledge base
+
+### 🏗️ Microservices Architecture
+- **5 Independent Services**: UI, RAG, LLM, Data Pipeline, Auth
+- **Scalable**: Each service scales independently
+- **Production-Ready**: Redis caching, PostgreSQL metadata, monitoring
+
+### 🛠️ Modern Tech Stack
+- **FastAPI** for microservices
+- **LangChain & LangGraph** for RAG workflows
+- **ChromaDB** for vector storage
+- **Redis** for caching and queues
+- **PostgreSQL** for metadata
+- **Prometheus & Grafana** for monitoring
+
+### 🧪 Quality Assurance
+- **117+ Tests** with 43%+ coverage
+- **CI/CD** with GitHub Actions
+- **Comprehensive Documentation**
+
+---
+
+## 📚 Documentation
+
+### 🎯 For New Users
+
+1. **[Quick Start Guide](docs/QUICKSTART.md)** - Get running in 5 minutes
+2. **[Project Guide](docs/PROJECT_GUIDE.md)** - Complete project overview
+3. **[API Keys Setup](docs/API_KEYS_SETUP.md)** - Configure your API keys
+
+### 🏗️ For Developers
+
+1. **[Architecture Guide](docs/ARCHITECTURE.md)** - System design and microservices
+2. **[Development Guide](docs/DEVELOPMENT.md)** - Development setup and workflow
+3. **[Testing Guide](docs/TESTING.md)** - Testing practices and examples
+4. **[Deployment Guide](docs/DEPLOYMENT.md)** - Deploy to production
+
+### 📖 Complete Documentation Index
+
+See [docs/README.md](docs/README.md) for the complete documentation index.
+
+---
+
+## 🏗️ Architecture
+
+LOLQA uses a **microservices architecture** with 5 main services:
+
+```
+┌─────────────────────────────────────────┐
+│         API Gateway (Traefik)          │
+└─────────────────────────────────────────┘
+         │         │         │         │
+    ┌────▼───┐ ┌──▼───┐ ┌───▼──┐ ┌───▼───┐
+    │   UI   │ │ RAG  │ │ LLM  │ │ Data  │
+    │Service │ │Service│ │Service│ │Pipeline│
+    └────────┘ └───────┘ └──────┘ └───────┘
+```
+
+**Services**:
+- **UI Service** (Port 8501) - Streamlit frontend
+- **RAG Service** (Port 8002) - RAG queries with LangGraph
+- **LLM Service** (Port 8001) - LLM inference and embeddings
+- **Data Pipeline Service** (Port 8003) - Data collection and ingestion
+- **Auth Service** (Port 8004) - User authentication
+
+**Infrastructure**:
+- **Redis** - Caching and job queues
+- **PostgreSQL** - Metadata storage
+- **ChromaDB** - Vector database
+- **Prometheus & Grafana** - Monitoring
+
+> 📖 **For detailed architecture**: See [Architecture Guide](docs/ARCHITECTURE.md)
+
+---
+
+## 🛠️ Installation & Setup
+
+### Option 1: Docker Compose (Recommended)
+
+```bash
+# Start all services
+docker-compose up --build
+
+# View logs
+docker-compose logs -f
+
+# Stop services
+docker-compose down
+```
+
+### Option 2: Local Development
+
+```bash
+# Install dependencies
 pip install -r requirements.txt
+pip install -r requirements-test.txt
+
+# Run individual services (see Development Guide)
+cd services/llm-service && python main.py
 ```
 
-3. **Set up environment variables**:
-Create a `.env` file in the root directory:
-```env
-OPENAI_API_KEY=your_openai_api_key_here
-LANGSMITH_API_KEY=your_langsmith_api_key_here
-LANGSMITH_PROJECT=lolqa
-LANGSMITH_ENDPOINT=https://api.smith.langchain.com
-```
+> 📖 **For detailed setup**: See [Development Guide](docs/DEVELOPMENT.md)
 
-> 📖 **Don't have API keys yet?** Follow the [API Keys Setup Guide](API_KEYS_SETUP.md) for detailed instructions on obtaining both keys.
-
-4. **Run the application**:
-```bash
-streamlit run app.py
-```
-
-The application will be available at `http://localhost:8501`
-
-## 🏗️ Project Structure
-
-The project has been reorganized for better maintainability:
-
-```
-.
-├── app_new.py            # Main Streamlit application (NEW organized structure)
-├── src/                  # Source code (organized by function)
-│   ├── core/            # Core RAG and workflow logic
-│   ├── data/            # Data collection and sources
-│   ├── config/          # Configuration and constants
-│   └── utils/           # Utility functions
-├── docs/                 # All documentation
-├── deployment/           # Docker and cloud configs
-├── scripts/              # Setup and utility scripts
-├── tests/                # Test suite
-└── requirements.txt      # Python dependencies
-```
-
-📖 **For detailed structure**: See [docs/PROJECT_STRUCTURE.md](docs/PROJECT_STRUCTURE.md)
-
-## 🐳 Docker Deployment
-
-### Build the Docker image:
-```bash
-docker build -t lol-qa-app .
-```
-
-### Run the container:
-```bash
-docker run -p 8501:8501 --env-file .env lol-qa-app
-```
-
-## ☁️ Cloud Deployment
-
-### Option 1: Streamlit Cloud (Recommended for Streamlit apps)
-
-1. Push your code to GitHub
-2. Go to [share.streamlit.io](https://share.streamlit.io)
-3. Connect your repository
-4. Add environment variables in the settings
-5. Deploy!
-
-### Option 2: Railway
-
-1. Install Railway CLI: `npm i -g @railway/cli`
-2. Login: `railway login`
-3. Initialize: `railway init`
-4. Add environment variables in Railway dashboard
-5. Deploy: `railway up`
-
-### Option 3: Render
-
-1. Create a new Web Service on Render
-2. Connect your GitHub repository
-3. Set build command: `pip install -r requirements.txt`
-4. Set start command: `streamlit run app.py --server.port=$PORT --server.address=0.0.0.0`
-5. Add environment variables
-6. Deploy!
-
-### Option 4: Heroku
-
-1. Install Heroku CLI
-2. Login: `heroku login`
-3. Create app: `heroku create your-app-name`
-4. Set environment variables: `heroku config:set OPENAI_API_KEY=...`
-5. Deploy: `git push heroku main`
+---
 
 ## 🧪 Testing
 
-This project includes comprehensive tests for all components.
-
-### Run Tests
-
 ```bash
-# Install test dependencies
-pip install -r requirements-test.txt
-
 # Run all tests
 pytest
 
 # Run with coverage
-pytest --cov=src --cov-report=html
+pytest --cov=src --cov=shared --cov=services --cov-report=html
 
-# Run specific test types
-pytest -m unit           # Unit tests only
-pytest -m integration    # Integration tests only
+# Run specific test
+pytest tests/test_rag_service.py -v
 ```
 
-### Test Coverage
+**Test Coverage**: 43%+ (117 tests, 5 skipped)
 
-- ✅ **70%+** overall coverage
-- ✅ Unit tests for all core components
-- ✅ Integration tests for end-to-end flows
-- ✅ Mocked external dependencies (no real API calls)
+> 📖 **For testing guide**: See [Testing Guide](docs/TESTING.md)
 
-📖 **For detailed testing guide**: See [docs/TESTING.md](docs/TESTING.md)
+---
 
-## 🔍 How It Works
+## 🚀 Deployment
 
-> 📖 **For a detailed explanation of the architecture and how everything works together, see [PROJECT_ARCHITECTURE.md](PROJECT_ARCHITECTURE.md)**
+### Local Development
+```bash
+docker-compose up
+```
 
-**Quick Overview**:
+### Kubernetes
+```bash
+kubectl apply -f kubernetes/
+```
 
-1. **Data Collection**: The `data_collector.py` module creates a knowledge base of League of Legends information (champions, abilities, game mechanics)
+### Cloud Platforms
+- AWS (ECS/EKS)
+- Google Cloud (GKE)
+- Azure (AKS)
+- DigitalOcean
 
-2. **RAG System**: The `rag_system.py` module:
-   - Creates embeddings using OpenAI
-   - Stores documents in ChromaDB vector store
-   - Retrieves relevant context for questions
-   - Generates answers using GPT-4
+> 📖 **For deployment guide**: See [Deployment Guide](docs/DEPLOYMENT.md)
 
-3. **LangGraph Workflow**: The `langgraph_workflow.py` module orchestrates:
-   - Question extraction
-   - Context retrieval
-   - Answer generation
-   - Response formatting
+---
 
-4. **LangSmith Monitoring**: All queries are automatically traced and logged to LangSmith for monitoring and debugging
+## 📁 Project Structure
 
-5. **Streamlit UI**: The `app.py` provides an interactive interface for users to ask questions
+```
+LOLQA/
+├── services/              # Microservices
+│   ├── llm-service/       # LLM inference
+│   ├── rag-service/       # RAG queries
+│   ├── data-pipeline-service/  # Data ingestion
+│   ├── auth-service/      # Authentication
+│   └── ui-service/        # Streamlit UI
+├── shared/                # Shared code
+│   └── common/           # Common utilities
+├── src/                   # Legacy monolithic code
+├── tests/                 # Test suite
+├── docs/                  # Documentation
+├── kubernetes/           # K8s manifests
+└── docker-compose.yml    # Local orchestration
+```
+
+> 📖 **For detailed structure**: See [Project Guide](docs/PROJECT_GUIDE.md)
+
+---
+
+## 🔧 Configuration
+
+### Environment Variables
+
+Create `.env` file:
+
+```env
+# OpenAI
+OPENAI_API_KEY=your_key_here
+
+# LLM Configuration
+LLM_MODEL=gpt-4o-mini
+LLM_BACKEND=openai
+
+# Redis
+REDIS_URL=redis://redis:6379/0
+
+# PostgreSQL
+POSTGRES_URL=postgresql://lolqa:password@postgres:5432/lolqa
+
+# JWT
+JWT_SECRET_KEY=your-secret-key
+```
+
+> 📖 **For configuration details**: See [API Keys Setup](docs/API_KEYS_SETUP.md)
+
+---
 
 ## 📝 Example Questions
 
@@ -175,82 +254,80 @@ pytest -m integration    # Integration tests only
 - "Tell me about teamfighting in League of Legends"
 - "What items should I build on Jinx?"
 
-## 🔧 Configuration
-
-### Adding More Data
-
-To add more League of Legends data, modify the `create_sample_data()` method in `data_collector.py`. You can:
-- Add more champions
-- Include patch notes
-- Add item descriptions
-- Include strategy guides
-
-### Customizing the LLM
-
-Edit `rag_system.py` to change the model:
-```python
-self.llm = ChatOpenAI(
-    model_name="gpt-4",  # or "gpt-3.5-turbo"
-    temperature=0.7,
-)
-```
-
-### Adjusting Retrieval
-
-Modify the retriever settings in `rag_system.py`:
-```python
-self.retriever = self.vectorstore.as_retriever(
-    search_type="similarity",
-    search_kwargs={"k": 5}  # Retrieve more/fewer documents
-)
-```
+---
 
 ## 🐛 Troubleshooting
 
-### Vector Store Issues
-If you encounter issues with the vector store, delete the `chroma_db` directory and restart the application to recreate it.
-
-### API Key Errors
-Ensure your `.env` file is properly configured and contains valid API keys.
-
-### Port Already in Use
-If port 8501 is in use, specify a different port:
+### Services Not Starting
 ```bash
-streamlit run app.py --server.port=8502
+# Check logs
+docker-compose logs [service-name]
+
+# Check health
+curl http://localhost:8001/health
 ```
 
-## 📚 Technologies Used
+### Vector DB Issues
+```bash
+# Recreate vector DB
+rm -rf chroma_db/
+curl -X POST http://localhost:8003/ingest
+```
 
-- **LangChain 1.1.3**: RAG framework and LLM integration
-- **LangGraph 0.3.31**: Workflow orchestration
-- **LangSmith 0.3.32**: Monitoring and observability
-- **OpenAI**: Embeddings and LLM
-- **ChromaDB**: Vector database
-- **Streamlit**: Web interface
-- **Docker**: Containerization
+> 📖 **For more troubleshooting**: See [Deployment Guide](docs/DEPLOYMENT.md#-troubleshooting)
 
-### Version Information
+---
 
-This project uses the latest stable versions of LangChain ecosystem:
-- `langchain==1.1.3` - Core LangChain library
-- `langchain-openai==0.2.9` - OpenAI integrations
-- `langchain-community==0.3.7` - Community integrations
-- `langgraph==0.3.31` - Graph-based workflow orchestration
-- `langsmith==0.3.32` - Monitoring and observability
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit changes (`git commit -m 'feat: Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)
+5. Open Pull Request
+
+> 📖 **For contribution guidelines**: See [Development Guide](docs/DEVELOPMENT.md#-contributing)
+
+---
+
+## 📊 Project Statistics
+
+- **Services**: 5 microservices
+- **Tests**: 117+ tests, 43%+ coverage
+- **Documentation**: Comprehensive guides
+- **Technologies**: FastAPI, LangChain, LangGraph, Redis, PostgreSQL
+
+---
+
+## 📚 Additional Resources
+
+### External Documentation
+- [LangChain Documentation](https://python.langchain.com/)
+- [LangGraph Documentation](https://langchain-ai.github.io/langgraph/)
+- [FastAPI Documentation](https://fastapi.tiangolo.com/)
+- [OpenAI API](https://platform.openai.com/docs)
+
+### Project Documentation
+- [Complete Documentation Index](docs/README.md)
+- [Architecture Guide](docs/ARCHITECTURE.md)
+- [Development Guide](docs/DEVELOPMENT.md)
+- [Testing Guide](docs/TESTING.md)
+- [Deployment Guide](docs/DEPLOYMENT.md)
+
+---
 
 ## 📄 License
 
 This project is for educational purposes.
 
-## 🤝 Contributing
+---
 
-Feel free to submit issues, fork the repository, and create pull requests for any improvements.
+## 🙏 Acknowledgments
 
-## 📧 Support
-
-For questions or issues, please open an issue on the repository.
+- Built with ⚔️ for League of Legends fans and AI enthusiasts
+- Powered by LangChain, LangGraph, and OpenAI
+- Inspired by the League of Legends community
 
 ---
 
-Made with ⚔️ for League of Legends fans!
-
+**Made with ⚔️ for League of Legends fans!**
