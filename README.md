@@ -97,14 +97,14 @@ See [docs/README.md](docs/README.md) for the complete documentation index.
 LOLQA uses a **microservices architecture** with 5 main services:
 
 ```
-┌─────────────────────────────────────────┐
-│         API Gateway (Traefik)          │
-└─────────────────────────────────────────┘
+┌─────────────────────────────────────────────┐
+│             API Gateway (Traefik)           │
+└─────────────────────────────────────────────┘
          │         │         │         │
-    ┌────▼───┐ ┌──▼───┐ ┌───▼──┐ ┌───▼───┐
-    │   UI   │ │ RAG  │ │ LLM  │ │ Data  │
+    ┌────▼───┐ ┌──▼────┐ ┌───▼───┐ ┌───▼────┐
+    │   UI   │ │ RAG   │ │ LLM   │ │ Data   │
     │Service │ │Service│ │Service│ │Pipeline│
-    └────────┘ └───────┘ └──────┘ └───────┘
+    └────────┘ └───────┘ └───────┘ └────────┘
 ```
 
 **Services**:
