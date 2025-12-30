@@ -135,7 +135,7 @@ The application demonstrates modern AI development practices including:
 │                    APPLICATION LAYER                             │
 │                                                                  │
 │  app.py                                                          │
-│  ├─ handle_user_input()      → Process user messages             │
+│  ├─ handle_user_input()       → Process user messages            │
 │  ├─ process_query()           → Invoke workflow                  │
 │  ├─ render_sidebar()          → Display conversation controls    │
 │  └─ initialize_systems()      → Setup RAG + Workflow             │
@@ -164,7 +164,7 @@ The application demonstrates modern AI development practices including:
 │                   DATA LAYER                                     │
 │                                                                  │
 │  src/data/collector.py + src/data/sources/*                      │
-│  ├─ DataDragonCollector      → Fetch champions from Riot         │
+│  ├─ DataDragonCollector       → Fetch champions from Riot        │
 │  ├─ WebScraperCollector       → Scrape wiki content              │
 │  ├─ SampleDataCollector       → Fallback data                    │
 │  └─ RiotAPICollector          → Live API data (optional)         │
@@ -191,9 +191,9 @@ LOLQA/
 ├── requirements.txt               # Python dependencies
 ├── requirements-test.txt          # Testing dependencies
 ├── pytest.ini                     # Pytest configuration
-├── .env.example                  # Environment template
-├── .gitignore                    # Git ignore rules
-├── README.md                     # Main documentation
+├── .env.example                   # Environment template
+├── .gitignore                     # Git ignore rules
+├── README.md                      # Main documentation
 │
 ├── src/                           # 📦 SOURCE CODE
 │   ├── __init__.py
@@ -225,38 +225,38 @@ LOLQA/
 │
 ├── tests/                         # 🧪 TEST SUITE
 │   ├── __init__.py
-│   ├── conftest.py               # Shared fixtures (15+)
-│   ├── test_utils.py             # 18 tests
-│   ├── test_config.py            # 12 tests
-│   ├── test_data_collectors.py   # 15 tests
-│   ├── test_rag_system.py        # 10 tests
-│   ├── test_workflow.py          # 9 tests
-│   └── test_integration.py       # 6 tests
+│   ├── conftest.py                # Shared fixtures (15+)
+│   ├── test_utils.py              # 18 tests
+│   ├── test_config.py             # 12 tests
+│   ├── test_data_collectors.py    # 15 tests
+│   ├── test_rag_system.py         # 10 tests
+│   ├── test_workflow.py           # 9 tests
+│   └── test_integration.py        # 6 tests
 │
 ├── docs/                          # 📚 DOCUMENTATION
 │   ├── README.md                  # Documentation index
-│   ├── PROJECT_GUIDE.md          # This file (comprehensive)
-│   ├── QUICKSTART.md             # Quick start (5 min)
-│   ├── API_KEYS_SETUP.md         # API configuration
-│   ├── DATA_COLLECTION.md        # Data collection details
-│   ├── TESTING.md                # Testing guide
-│   └── archive/                  # Historical docs
+│   ├── PROJECT_GUIDE.md           # This file (comprehensive)
+│   ├── QUICKSTART.md              # Quick start (5 min)
+│   ├── API_KEYS_SETUP.md          # API configuration
+│   ├── DATA_COLLECTION.md         # Data collection details
+│   ├── TESTING.md                 # Testing guide
+│   └── archive/                   # Historical docs
 │       ├── MIGRATION_GUIDE.md
 │       ├── REORGANIZATION_SUMMARY.md
 │       └── TESTING_SUMMARY.md
 │
 ├── deployment/                    # 🚀 DEPLOYMENT
-│   ├── Dockerfile                # Docker configuration
-│   ├── Procfile                  # Heroku/Railway config
-│   └── render.yaml               # Render.com config
+│   ├── Dockerfile                 # Docker configuration
+│   ├── Procfile                   # Heroku/Railway config
+│   └── render.yaml                # Render.com config
 │
 ├── scripts/                       # 📜 SCRIPTS
-│   ├── setup.sh                  # Setup script
-│   └── upgrade_python.sh         # Python upgrade
+│   ├── setup.sh                   # Setup script
+│   └── upgrade_python.sh          # Python upgrade
 │
 ├── .github/                       # 🔄 CI/CD
 │   └── workflows/
-│       └── tests.yml             # Automated testing
+│       └── tests.yml              # Automated testing
 │
 ├── chroma_db/                     # 💾 Vector database
 └── venv/                          # 🐍 Virtual environment
