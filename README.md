@@ -100,7 +100,7 @@ LOLQA uses a **microservices architecture** with 5 main services:
 ┌─────────────────────────────────────────────┐
 │             API Gateway (Traefik)           │
 └─────────────────────────────────────────────┘
-         │         │         │         │
+         │        │          │         │
     ┌────▼───┐ ┌──▼────┐ ┌───▼───┐ ┌───▼────┐
     │   UI   │ │ RAG   │ │ LLM   │ │ Data   │
     │Service │ │Service│ │Service│ │Pipeline│
