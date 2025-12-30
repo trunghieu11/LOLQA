@@ -9,8 +9,11 @@
 The system works out of the box with default settings:
 
 ```bash
-# Just run - it will use Data Dragon + Web Scraper + Sample Data
-streamlit run app.py
+# Start all microservices
+docker-compose up --build
+
+# Ingest data (uses Data Dragon + Web Scraper + Sample Data)
+curl -X POST http://localhost:8003/ingest -H "Content-Type: application/json" -d '{}'
 ```
 
 **Default behavior:**

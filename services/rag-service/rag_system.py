@@ -22,7 +22,11 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.tools import tool
 
 # Import existing code
-from src.core.workflow import LoLQAGraph
+try:
+    from src.core.workflow import LoLQAGraph
+except ImportError:
+    LoLQAGraph = None  # Type hint fallback
+
 from src.config.constants import (
     DEFAULT_PROMPT_TEMPLATE,
     DEFAULT_PROMPT_TEMPLATE_WITH_HISTORY,
@@ -82,7 +86,7 @@ class RAGServiceSystem:
         self.llm_client = LLMServiceClient(config.llm_service_url)
         self.vectorstore: Optional[Chroma] = None
         self.retriever: Optional[Any] = None
-        self.workflow: Optional[LoLQAGraph] = None
+        self.workflow: Optional[Any] = None  # LoLQAGraph type hint (optional)
         self.embeddings: Optional[OpenAIEmbeddings] = None
     
     async def initialize(self):

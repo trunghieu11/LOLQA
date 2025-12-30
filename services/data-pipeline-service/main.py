@@ -9,7 +9,7 @@ import uuid
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Request
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Request, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from shared.common import setup_logger, get_config, HealthResponse, PipelineJobRequest, PipelineJobResponse
@@ -17,7 +17,7 @@ from shared.common.config import DataPipelineConfig
 from shared.common.redis_client import RedisClient
 from shared.common.db_client import get_db_client
 from shared.common.metrics import get_metrics, http_requests_total, http_request_duration_seconds
-from data_pipeline_service.pipeline import DataPipeline
+from pipeline import DataPipeline
 import os
 import time
 
@@ -82,7 +82,9 @@ async def startup_event():
         logger.info("Data pipeline initialized successfully")
     except Exception as e:
         logger.error(f"Failed to initialize data pipeline: {e}", exc_info=True)
-        raise
+        # Don't raise - allow service to start even if pipeline init fails
+        # Pipeline will be initialized on first /ingest call
+        logger.warning("Service will start but pipeline initialization will be deferred")
 
 
 @app.get("/health", response_model=HealthResponse)
@@ -125,21 +127,35 @@ async def run_pipeline_job(job_id: str, sources: Optional[list] = None, force_re
 
 @app.post("/ingest", response_model=PipelineJobResponse)
 async def ingest_data(
-    request: PipelineJobRequest,
-    background_tasks: BackgroundTasks
+    request: PipelineJobRequest = Body(default={}),
+    background_tasks: BackgroundTasks = BackgroundTasks()
 ):
     """
     Trigger data ingestion pipeline.
     
+    Can be called with:
+    - Empty JSON body: curl -X POST http://localhost:8003/ingest -H "Content-Type: application/json" -d '{}'
+    - With options: curl -X POST http://localhost:8003/ingest -H "Content-Type: application/json" -d '{"force_refresh": true}'
+    
     Args:
-        request: Pipeline job request
+        request: Pipeline job request (optional, defaults to all sources, no refresh)
         background_tasks: FastAPI background tasks
         
     Returns:
         Pipeline job response with job ID
     """
+    
+    global pipeline
     if pipeline is None:
-        raise HTTPException(status_code=503, detail="Pipeline not initialized")
+        # Try to initialize pipeline if not already initialized
+        try:
+            logger.info("Pipeline not initialized, initializing now...")
+            pipeline = DataPipeline(config)
+            await pipeline.initialize()
+            logger.info("Pipeline initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize pipeline: {e}", exc_info=True)
+            raise HTTPException(status_code=503, detail=f"Pipeline initialization failed: {str(e)}")
     
     try:
         job_id = str(uuid.uuid4())
