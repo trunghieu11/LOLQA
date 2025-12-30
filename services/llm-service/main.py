@@ -13,7 +13,7 @@ from shared.common import setup_logger, get_config, ChatRequest, ChatResponse, E
 from shared.common.config import LLMServiceConfig
 from shared.common.redis_client import RedisClient, get_embedding_cache_key
 from shared.common.metrics import get_metrics, http_requests_total, http_request_duration_seconds
-from llm_service.llm_client import LLMClient
+from llm_client import LLMClient
 import time
 import os
 

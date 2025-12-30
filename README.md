@@ -10,9 +10,9 @@ A comprehensive Q&A application about League of Legends built with **LangChain**
 
 ### Prerequisites
 
-- Python 3.11+
-- Docker and Docker Compose (for microservices)
-- OpenAI API key
+- **Docker and Docker Compose** ([Get Docker](https://www.docker.com/get-started))
+- **OpenAI API key** ([Get one here](https://platform.openai.com/api-keys))
+- **Git** (to clone the repository)
 
 ### 5-Minute Setup
 
@@ -36,7 +36,7 @@ docker-compose up --build
 
 4. **Ingest data** (first time):
 ```bash
-curl -X POST http://localhost:8003/ingest
+curl -X POST http://localhost:8003/ingest -H "Content-Type: application/json" -d '{}'
 ```
 
 > 📖 **Need more details?** See the [Quick Start Guide](docs/QUICKSTART.md)
@@ -207,7 +207,7 @@ LOLQA/
 │   └── ui-service/        # Streamlit UI
 ├── shared/                # Shared code
 │   └── common/           # Common utilities
-├── src/                   # Legacy monolithic code
+├── src/                   # Core RAG system (used by microservices)
 ├── tests/                 # Test suite
 ├── docs/                  # Documentation
 ├── kubernetes/           # K8s manifests
@@ -267,11 +267,21 @@ docker-compose logs [service-name]
 curl http://localhost:8001/health
 ```
 
+### UI Service ModuleNotFoundError
+If you see `ModuleNotFoundError: No module named 'redis'` when accessing http://localhost:8501:
+```bash
+# Rebuild UI service
+docker-compose up --build -d ui-service
+
+# Check logs
+docker-compose logs ui-service
+```
+
 ### Vector DB Issues
 ```bash
 # Recreate vector DB
 rm -rf chroma_db/
-curl -X POST http://localhost:8003/ingest
+curl -X POST http://localhost:8003/ingest -H "Content-Type: application/json" -d '{}'
 ```
 
 > 📖 **For more troubleshooting**: See [Deployment Guide](docs/DEPLOYMENT.md#-troubleshooting)

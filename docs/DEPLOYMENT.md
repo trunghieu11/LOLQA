@@ -50,7 +50,7 @@ docker-compose up --build
 
 5. **Ingest data** (first time):
 ```bash
-curl -X POST http://localhost:8003/ingest
+curl -X POST http://localhost:8003/ingest -H "Content-Type: application/json" -d '{}'
 ```
 
 ### Running Services Individually

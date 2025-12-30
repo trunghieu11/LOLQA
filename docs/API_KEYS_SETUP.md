@@ -118,11 +118,12 @@ python -c "from openai import OpenAI; client = OpenAI(api_key='your-key-here'); 
 ```
 
 ### Test LangSmith API Key
-1. Run your application: `streamlit run app.py`
-2. Ask a question in the app
-3. Go to [https://smith.langchain.com/](https://smith.langchain.com/)
-4. Check if traces appear in your project dashboard
-5. If you see traces, your LangSmith integration is working! ✅
+1. Start all services: `docker-compose up --build`
+2. Access the UI at http://localhost:8501
+3. Ask a question in the app
+4. Go to [https://smith.langchain.com/](https://smith.langchain.com/)
+5. Check if traces appear in your project dashboard
+6. If you see traces, your LangSmith integration is working! ✅
 
 ---
 
@@ -141,9 +142,10 @@ python -c "from openai import OpenAI; client = OpenAI(api_key='your-key-here'); 
 
 ### LangSmith Not Showing Traces
 - ✅ Verify `LANGSMITH_API_KEY` is set correctly in `.env`
-- ✅ Check that `LANGCHAIN_TRACING_V2=true` is set (automatically set in `app.py`)
+- ✅ Check that `LANGCHAIN_TRACING_V2=true` is set in your service configuration
 - ✅ Ensure the project name matches in LangSmith dashboard
 - ✅ Wait a few seconds for traces to appear (they're not instant)
+- ✅ Check service logs: `docker-compose logs rag-service`
 
 ### Environment Variables Not Loading
 - ✅ Make sure `.env` file is in the project root directory

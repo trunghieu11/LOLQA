@@ -9,4 +9,7 @@ langgraph>=1.0.0
 chromadb>=0.5.0
 httpx>=0.25.0
 python-dotenv>=1.0.0
+redis>=5.0.0
+prometheus-client>=0.19.0
+psycopg2-binary>=2.9.9
 

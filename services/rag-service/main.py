@@ -11,7 +11,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from shared.common import setup_logger, get_config, HealthResponse, RAGQueryRequest, RAGQueryResponse
 from shared.common.config import RAGServiceConfig
-from rag_service.rag_system import RAGServiceSystem
+from rag_system import RAGServiceSystem
 
 # Setup logger
 logger = setup_logger(__name__)
@@ -51,7 +51,9 @@ async def startup_event():
         logger.info("RAG system initialized successfully")
     except Exception as e:
         logger.error(f"Failed to initialize RAG system: {e}", exc_info=True)
-        raise
+        # Don't raise - allow service to start even if RAG init fails
+        # RAG will be initialized on first /query call
+        logger.warning("Service will start but RAG initialization will be deferred")
 
 
 @app.get("/health", response_model=HealthResponse)
@@ -81,8 +83,17 @@ async def query(request: RAGQueryRequest):
     Returns:
         RAG query response with answer and context
     """
+    global rag_system
     if rag_system is None:
-        raise HTTPException(status_code=503, detail="RAG system not initialized")
+        # Try to initialize RAG system if not already initialized
+        try:
+            logger.info("RAG system not initialized, initializing now...")
+            rag_system = RAGServiceSystem(config)
+            await rag_system.initialize()
+            logger.info("RAG system initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize RAG system: {e}", exc_info=True)
+            raise HTTPException(status_code=503, detail=f"RAG system initialization failed: {str(e)}")
     
     try:
         logger.info(f"Processing RAG query: {request.question[:50]}...")
