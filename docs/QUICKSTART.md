@@ -15,7 +15,13 @@ Get your League of Legends Q&A application up and running in minutes!
 Run the setup script:
 
 ```bash
-./setup.sh
+./scripts/setup.sh
+```
+
+Or if you prefer:
+
+```bash
+bash scripts/setup.sh
 ```
 
 Then:
