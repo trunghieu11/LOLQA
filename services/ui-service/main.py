@@ -126,7 +126,7 @@ if user_question:
                 with httpx.Client(timeout=60.0) as client:
                     response = client.post(
                         f"{RAG_SERVICE_URL}/query",
-                        json=request.dict()
+                        json=request.model_dump()
                     )
                     response.raise_for_status()
                     result = response.json()

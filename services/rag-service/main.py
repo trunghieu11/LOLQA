@@ -1,7 +1,7 @@
 """RAG Service - Handles RAG queries with LangGraph workflow"""
 import sys
-import os
 from pathlib import Path
+from contextlib import asynccontextmanager
 
 # Add shared and src to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -12,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from shared.common import setup_logger, get_config, HealthResponse, RAGQueryRequest, RAGQueryResponse
 from shared.common.config import RAGServiceConfig
 from rag_system import RAGServiceSystem
+from langchain_core.documents import Document
 
 # Setup logger
 logger = setup_logger(__name__)
@@ -20,11 +21,81 @@ logger = setup_logger(__name__)
 config: RAGServiceConfig = get_config("rag")
 logger.info(f"Starting RAG Service")
 
+# Constants
+SERVICE_NAME = "rag-service"
+SERVICE_VERSION = "1.0.0"
+
+# Initialize RAG system
+rag_system = None
+
+
+def format_documents(docs: list[Document]) -> list[dict]:
+    """Format documents for API response"""
+    return [
+        {
+            "content": doc.page_content,
+            "metadata": doc.metadata
+        }
+        for doc in docs
+    ]
+
+
+async def initialize_rag_system(raise_on_error: bool = False) -> bool:
+    """
+    Initialize RAG system.
+    
+    Args:
+        raise_on_error: If True, raise exception on failure. If False, log and continue.
+    
+    Returns:
+        True if successful, False otherwise
+    """
+    global rag_system
+    try:
+        logger.info("Initializing RAG system...")
+        rag_system = RAGServiceSystem(config)
+        await rag_system.initialize()
+        logger.info("RAG system initialized successfully")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to initialize RAG system: {e}", exc_info=True)
+        if raise_on_error:
+            raise HTTPException(
+                status_code=503,
+                detail=f"RAG system initialization failed: {str(e)}"
+            )
+        logger.warning("Service will start but RAG initialization will be deferred")
+        return False
+
+
+def check_rag_system_initialized() -> None:
+    """Check if RAG system is initialized, raise if not"""
+    if rag_system is None:
+        raise HTTPException(
+            status_code=503,
+            detail="RAG system not initialized"
+        )
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan context manager for startup and shutdown"""
+    # Startup
+    await initialize_rag_system(raise_on_error=False)
+    
+    yield
+    
+    # Shutdown
+    if rag_system is not None:
+        logger.info("Shutting down RAG system...")
+
+
 # Initialize FastAPI app
 app = FastAPI(
     title="RAG Service",
     description="RAG and LangGraph workflow service",
-    version="1.0.0"
+    version=SERVICE_VERSION,
+    lifespan=lifespan
 )
 
 # CORS middleware
@@ -36,39 +107,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize RAG system
-rag_system = None
-
-
-@app.on_event("startup")
-async def startup_event():
-    """Initialize RAG system on startup"""
-    global rag_system
-    try:
-        logger.info("Initializing RAG system...")
-        rag_system = RAGServiceSystem(config)
-        await rag_system.initialize()
-        logger.info("RAG system initialized successfully")
-    except Exception as e:
-        logger.error(f"Failed to initialize RAG system: {e}", exc_info=True)
-        # Don't raise - allow service to start even if RAG init fails
-        # RAG will be initialized on first /query call
-        logger.warning("Service will start but RAG initialization will be deferred")
-
 
 @app.get("/health", response_model=HealthResponse)
 async def health_check():
     """Health check endpoint"""
-    if rag_system is None:
-        return HealthResponse(
-            status="initializing",
-            service="rag-service",
-            version="1.0.0"
-        )
     return HealthResponse(
-        status="healthy",
-        service="rag-service",
-        version="1.0.0"
+        status="initializing" if rag_system is None else "healthy",
+        service=SERVICE_NAME,
+        version=SERVICE_VERSION
     )
 
 
@@ -84,16 +130,10 @@ async def query(request: RAGQueryRequest):
         RAG query response with answer and context
     """
     global rag_system
+    
+    # Lazy initialization if needed
     if rag_system is None:
-        # Try to initialize RAG system if not already initialized
-        try:
-            logger.info("RAG system not initialized, initializing now...")
-            rag_system = RAGServiceSystem(config)
-            await rag_system.initialize()
-            logger.info("RAG system initialized successfully")
-        except Exception as e:
-            logger.error(f"Failed to initialize RAG system: {e}", exc_info=True)
-            raise HTTPException(status_code=503, detail=f"RAG system initialization failed: {str(e)}")
+        await initialize_rag_system(raise_on_error=True)
     
     try:
         logger.info(f"Processing RAG query: {request.question[:50]}...")
@@ -117,18 +157,14 @@ async def query(request: RAGQueryRequest):
         context = None
         if request.k:
             docs = await rag_system.get_relevant_documents(request.question, k=request.k)
-            context = [
-                {
-                    "content": doc.page_content,
-                    "metadata": doc.metadata
-                }
-                for doc in docs
-            ]
+            context = format_documents(docs)
         
         return RAGQueryResponse(
             answer=answer,
             context=context
         )
+    except HTTPException:
+        raise  # Re-raise HTTP exceptions
     except Exception as e:
         logger.error(f"Error processing RAG query: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
@@ -146,20 +182,13 @@ async def retrieve(question: str, k: int = 3):
     Returns:
         List of relevant documents
     """
-    if rag_system is None:
-        raise HTTPException(status_code=503, detail="RAG system not initialized")
+    check_rag_system_initialized()
     
     try:
         docs = await rag_system.get_relevant_documents(question, k=k)
-        return {
-            "documents": [
-                {
-                    "content": doc.page_content,
-                    "metadata": doc.metadata
-                }
-                for doc in docs
-            ]
-        }
+        return {"documents": format_documents(docs)}
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error retrieving documents: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
@@ -168,12 +197,13 @@ async def retrieve(question: str, k: int = 3):
 @app.get("/stats")
 async def get_stats():
     """Get vector database statistics"""
-    if rag_system is None:
-        raise HTTPException(status_code=503, detail="RAG system not initialized")
+    check_rag_system_initialized()
     
     try:
         stats = await rag_system.get_stats()
         return stats
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error getting stats: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
@@ -182,4 +212,3 @@ async def get_stats():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host=config.host, port=config.port)
-

@@ -1,38 +1,122 @@
 """Data Pipeline Service - Handles data collection, chunking, and vector DB ingestion"""
-import sys
 import os
+import sys
+import time
+import uuid
+import asyncio
 from pathlib import Path
 from typing import Optional
-import uuid
+from contextlib import asynccontextmanager
 
 # Add paths
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Request, Body
+from fastapi import FastAPI, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
-from shared.common import setup_logger, get_config, HealthResponse, PipelineJobRequest, PipelineJobResponse
+from fastapi import Request
+from shared.common import (
+    setup_logger,
+    get_config,
+    HealthResponse,
+    PipelineJobRequest,
+    PipelineJobResponse
+)
 from shared.common.config import DataPipelineConfig
 from shared.common.redis_client import RedisClient
 from shared.common.db_client import get_db_client
-from shared.common.metrics import get_metrics, http_requests_total, http_request_duration_seconds
+from shared.common.metrics import (
+    get_metrics,
+    http_requests_total,
+    http_request_duration_seconds
+)
 from pipeline import DataPipeline
-import os
-import time
 
 # Setup logger
 logger = setup_logger(__name__)
 
 # Get configuration
 config: DataPipelineConfig = get_config("data-pipeline")
-logger.info(f"Starting Data Pipeline Service")
+logger.info("Starting Data Pipeline Service")
+
+# Constants
+SERVICE_NAME = "data-pipeline-service"
+SERVICE_VERSION = "1.0.0"
+
+# Initialize pipeline
+pipeline = None
+redis_client = RedisClient(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
+db_client = get_db_client()
+
+
+async def initialize_pipeline(raise_on_error: bool = False) -> bool:
+    """
+    Initialize data pipeline.
+    
+    Args:
+        raise_on_error: If True, raise exception on failure. If False, log and continue.
+    
+    Returns:
+        True if successful, False otherwise
+    """
+    global pipeline
+    try:
+        logger.info("Initializing data pipeline...")
+        pipeline = DataPipeline(config)
+        await pipeline.initialize()
+        logger.info("Data pipeline initialized successfully")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to initialize data pipeline: {e}", exc_info=True)
+        if raise_on_error:
+            raise HTTPException(
+                status_code=503,
+                detail=f"Pipeline initialization failed: {str(e)}"
+            )
+        logger.warning("Service will start but pipeline initialization will be deferred")
+        return False
+
+
+def check_pipeline_initialized() -> None:
+    """Check if pipeline is initialized, raise if not"""
+    if pipeline is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Pipeline not initialized"
+        )
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan context manager for startup and shutdown"""
+    # Startup
+    await initialize_pipeline(raise_on_error=False)
+    
+    # Start worker process as background task
+    worker_task = asyncio.create_task(worker_process())
+    logger.info("Pipeline worker process started")
+    
+    yield
+    
+    # Shutdown
+    logger.info("Shutting down worker process...")
+    worker_task.cancel()
+    try:
+        await worker_task
+    except asyncio.CancelledError:
+        logger.info("Worker process cancelled")
+    
+    if pipeline is not None:
+        logger.info("Shutting down data pipeline...")
+
 
 # Initialize FastAPI app
 app = FastAPI(
     title="Data Pipeline Service",
     description="Data collection, chunking, and vector DB ingestion service",
-    version="1.0.0"
+    version=SERVICE_VERSION,
+    lifespan=lifespan
 )
 
 # CORS middleware
@@ -43,11 +127,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Initialize pipeline
-pipeline = None
-redis_client = RedisClient(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
-db_client = get_db_client()
 
 
 @app.middleware("http")
@@ -71,40 +150,35 @@ async def metrics_middleware(request: Request, call_next):
     return response
 
 
-@app.on_event("startup")
-async def startup_event():
-    """Initialize pipeline on startup"""
-    global pipeline
-    try:
-        logger.info("Initializing data pipeline...")
-        pipeline = DataPipeline(config)
-        await pipeline.initialize()
-        logger.info("Data pipeline initialized successfully")
-    except Exception as e:
-        logger.error(f"Failed to initialize data pipeline: {e}", exc_info=True)
-        # Don't raise - allow service to start even if pipeline init fails
-        # Pipeline will be initialized on first /ingest call
-        logger.warning("Service will start but pipeline initialization will be deferred")
-
-
 @app.get("/health", response_model=HealthResponse)
 async def health_check():
     """Health check endpoint"""
-    if pipeline is None:
-        return HealthResponse(
-            status="initializing",
-            service="data-pipeline-service",
-            version="1.0.0"
-        )
     return HealthResponse(
-        status="healthy",
-        service="data-pipeline-service",
-        version="1.0.0"
+        status="initializing" if pipeline is None else "healthy",
+        service=SERVICE_NAME,
+        version=SERVICE_VERSION
     )
 
 
-async def run_pipeline_job(job_id: str, sources: Optional[list] = None, force_refresh: bool = False):
-    """Background task to run pipeline job"""
+async def run_pipeline_job(
+    job_id: str,
+    sources: Optional[list] = None,
+    force_refresh: bool = False
+):
+    """
+    Run pipeline job.
+    
+    Args:
+        job_id: Job ID
+        sources: Optional list of source names
+        force_refresh: Force refresh flag
+    """
+    global pipeline
+    
+    # Ensure pipeline is initialized
+    if pipeline is None:
+        await initialize_pipeline(raise_on_error=True)
+    
     try:
         # Update job status in database
         db_client.update_pipeline_job(job_id, "running", "Starting pipeline...")
@@ -122,16 +196,53 @@ async def run_pipeline_job(job_id: str, sources: Optional[list] = None, force_re
         logger.info(f"Pipeline job {job_id} completed successfully")
     except Exception as e:
         logger.error(f"Pipeline job {job_id} failed: {e}", exc_info=True)
-        db_client.update_pipeline_job(job_id, "failed", str(e), error=str(e))
+        db_client.update_pipeline_job(
+            job_id,
+            "failed",
+            str(e),
+            error=str(e)
+        )
+
+
+async def worker_process():
+    """
+    Worker process that consumes jobs from Redis queue.
+    Runs continuously, polling for new jobs.
+    """
+    logger.info("Starting pipeline worker process...")
+    
+    while True:
+        try:
+            # Dequeue job from Redis (blocking, waits up to 5 seconds)
+            job = redis_client.dequeue("pipeline_jobs", timeout=5)
+            
+            if job:
+                logger.info(f"Worker picked up job: {job.get('job_id')}")
+                
+                # Process the job
+                await run_pipeline_job(
+                    job_id=job.get("job_id"),
+                    sources=job.get("sources"),
+                    force_refresh=job.get("force_refresh", False)
+                )
+            else:
+                # No job available, continue polling
+                await asyncio.sleep(1)  # Small delay to avoid busy waiting
+                
+        except Exception as e:
+            logger.error(f"Error in worker process: {e}", exc_info=True)
+            # Wait a bit before retrying to avoid tight error loop
+            await asyncio.sleep(5)
 
 
 @app.post("/ingest", response_model=PipelineJobResponse)
 async def ingest_data(
-    request: PipelineJobRequest = Body(default={}),
-    background_tasks: BackgroundTasks = BackgroundTasks()
+    request: PipelineJobRequest = Body(default={})
 ):
     """
     Trigger data ingestion pipeline.
+    
+    Jobs are added to Redis queue and processed by background worker.
     
     Can be called with:
     - Empty JSON body: curl -X POST http://localhost:8003/ingest -H "Content-Type: application/json" -d '{}'
@@ -139,50 +250,45 @@ async def ingest_data(
     
     Args:
         request: Pipeline job request (optional, defaults to all sources, no refresh)
-        background_tasks: FastAPI background tasks
         
     Returns:
         Pipeline job response with job ID
     """
-    
-    global pipeline
-    if pipeline is None:
-        # Try to initialize pipeline if not already initialized
-        try:
-            logger.info("Pipeline not initialized, initializing now...")
-            pipeline = DataPipeline(config)
-            await pipeline.initialize()
-            logger.info("Pipeline initialized successfully")
-        except Exception as e:
-            logger.error(f"Failed to initialize pipeline: {e}", exc_info=True)
-            raise HTTPException(status_code=503, detail=f"Pipeline initialization failed: {str(e)}")
-    
     try:
         job_id = str(uuid.uuid4())
         
         # Create job record in database
         db_client.create_pipeline_job(job_id, "queued", "Job queued")
         
-        # Add job to Redis queue
-        redis_client.enqueue("pipeline_jobs", {
+        # Add job to Redis queue (worker will process it)
+        success = redis_client.enqueue("pipeline_jobs", {
             "job_id": job_id,
             "sources": request.sources,
-            "force_refresh": request.force_refresh
+            "force_refresh": request.force_refresh or False
         })
         
-        # Start background job
-        background_tasks.add_task(
-            run_pipeline_job,
-            job_id,
-            request.sources,
-            request.force_refresh
-        )
+        if not success:
+            # If Redis enqueue fails, mark job as failed
+            db_client.update_pipeline_job(
+                job_id,
+                "failed",
+                "Failed to enqueue job to Redis",
+                error="Redis enqueue failed"
+            )
+            raise HTTPException(
+                status_code=503,
+                detail="Failed to queue job. Redis may be unavailable."
+            )
+        
+        logger.info(f"Job {job_id} queued successfully in Redis")
         
         return PipelineJobResponse(
             job_id=job_id,
             status="queued",
             message="Pipeline job queued successfully"
         )
+    except HTTPException:
+        raise  # Re-raise HTTP exceptions
     except Exception as e:
         logger.error(f"Error queuing pipeline job: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
@@ -219,4 +325,3 @@ async def schedule_pipeline(cron_expression: str):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host=config.host, port=config.port)
-
