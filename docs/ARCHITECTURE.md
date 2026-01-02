@@ -44,7 +44,7 @@ LOLQA is built as a **microservices architecture** with 5 main services:
 │                    API Gateway (Traefik)                    │
 │                    Port: 80, Dashboard: 8080                │
 └─────────────────────────────────────────────────────────────┘
-         │         │          │          │          │
+         │         │           │         │          │
          ▼         ▼           ▼         ▼          ▼
     ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐
     │   UI   │ │  RAG   │ │  LLM   │ │  Data  │ │  Auth  │

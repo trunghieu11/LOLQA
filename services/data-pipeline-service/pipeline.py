@@ -1,6 +1,7 @@
 """Data Pipeline - Handles data collection, chunking, and ingestion"""
 import sys
 import os
+import shutil
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 
@@ -71,7 +72,6 @@ class DataPipeline:
         try:
             # Initialize embeddings
             # For now, use OpenAI directly (can be changed to use LLM service)
-            import os
             openai_key = os.getenv("OPENAI_API_KEY")
             if not openai_key:
                 raise ValueError("OPENAI_API_KEY is required for embeddings")
@@ -80,8 +80,7 @@ class DataPipeline:
             logger.info("Embeddings initialized")
             
             # Initialize or load vector store
-            import os as os_module
-            if os_module.path.exists(self.config.vector_db_path):
+            if os.path.exists(self.config.vector_db_path):
                 self.vectorstore = Chroma(
                     persist_directory=self.config.vector_db_path,
                     embedding_function=self.embeddings
@@ -132,45 +131,43 @@ class DataPipeline:
             
             # Step 2: Chunk documents
             logger.info("Step 2: Chunking documents...")
+            chunk_size = getattr(self.config, 'chunk_size', 1000)
+            chunk_overlap = getattr(self.config, 'chunk_overlap', 200)
             text_splitter = RecursiveCharacterTextSplitter(
-                chunk_size=self.config.chunk_size if hasattr(self.config, 'chunk_size') else 1000,
-                chunk_overlap=self.config.chunk_overlap if hasattr(self.config, 'chunk_overlap') else 200,
+                chunk_size=chunk_size,
+                chunk_overlap=chunk_overlap,
                 length_function=len,
             )
             splits = text_splitter.split_documents(documents)
             logger.info(f"Created {len(splits)} chunks from {len(documents)} documents")
             
-            # Step 3: Initialize vector store if needed
+            # Step 3: Initialize or update vector store
             if self.vectorstore is None:
-                import os as os_module
-                os_module.makedirs(self.config.vector_db_path, exist_ok=True)
+                # Create new vector store
+                os.makedirs(self.config.vector_db_path, exist_ok=True)
                 self.vectorstore = Chroma.from_documents(
                     documents=splits,
                     embedding=self.embeddings,
                     persist_directory=self.config.vector_db_path
                 )
                 logger.info(f"Created new vector store with {len(splits)} chunks")
+            elif force_refresh:
+                # Clear and recreate existing store
+                if os.path.exists(self.config.vector_db_path):
+                    shutil.rmtree(self.config.vector_db_path)
+                
+                self.vectorstore = Chroma.from_documents(
+                    documents=splits,
+                    embedding=self.embeddings,
+                    persist_directory=self.config.vector_db_path
+                )
+                logger.info(f"Refreshed vector store with {len(splits)} chunks")
             else:
-                # Add new documents to existing store
+                # Add to existing store
                 # Note: This is a simplified approach. In production, you might want
                 # to check for duplicates or update existing documents
-                if force_refresh:
-                    # Clear and recreate
-                    import shutil
-                    import os as os_module
-                    if os_module.path.exists(self.config.vector_db_path):
-                        shutil.rmtree(self.config.vector_db_path)
-                    
-                    self.vectorstore = Chroma.from_documents(
-                        documents=splits,
-                        embedding=self.embeddings,
-                        persist_directory=self.config.vector_db_path
-                    )
-                    logger.info(f"Refreshed vector store with {len(splits)} chunks")
-                else:
-                    # Add to existing
-                    self.vectorstore.add_documents(splits)
-                    logger.info(f"Added {len(splits)} chunks to existing vector store")
+                self.vectorstore.add_documents(splits)
+                logger.info(f"Added {len(splits)} chunks to existing vector store")
             
             return {
                 "documents": len(documents),

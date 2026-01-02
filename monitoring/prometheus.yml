@@ -12,29 +12,28 @@ scrape_configs:
 
   - job_name: 'llm-service'
     static_configs:
-      - targets: ['llm-service:9091']
-    metrics_path: '/metrics'
-
-  - job_name: 'rag-service'
-    static_configs:
-      - targets: ['rag-service:9091']
+      - targets: ['llm-service:8000']  # Service runs on port 8000 internally
     metrics_path: '/metrics'
 
   - job_name: 'data-pipeline-service'
     static_configs:
-      - targets: ['data-pipeline-service:9091']
+      - targets: ['data-pipeline-service:8000']  # Service runs on port 8000 internally
     metrics_path: '/metrics'
 
-  - job_name: 'ui-service'
-    static_configs:
-      - targets: ['ui-service:9091']
-    metrics_path: '/metrics'
+  # Note: rag-service, auth-service, and ui-service don't expose /metrics endpoints
+  # If you want to monitor them, add metrics endpoints to those services
 
-  - job_name: 'redis'
-    static_configs:
-      - targets: ['redis:6379']
-
-  - job_name: 'postgres'
-    static_configs:
-      - targets: ['postgres:5432']
+  # Note: Redis and PostgreSQL don't expose Prometheus metrics directly
+  # To monitor them, you would need exporters:
+  # - redis_exporter for Redis metrics
+  # - postgres_exporter for PostgreSQL metrics
+  # For now, these are commented out to avoid connection warnings
+  #
+  # - job_name: 'redis'
+  #   static_configs:
+  #     - targets: ['redis-exporter:9121']  # Would need redis_exporter container
+  #
+  # - job_name: 'postgres'
+  #   static_configs:
+  #     - targets: ['postgres-exporter:9187']  # Would need postgres_exporter container
 
