@@ -1,6 +1,7 @@
 """Authentication Service - Handles JWT authentication and user management"""
 import sys
 import os
+import secrets
 from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Optional
@@ -9,17 +10,24 @@ from typing import Optional
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from fastapi import FastAPI, HTTPException, Depends, status
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, EmailStr
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from shared.common import setup_logger, get_config, HealthResponse
+from shared.common import (
+    setup_logger,
+    get_config,
+    setup_cors_middleware,
+    handle_service_errors
+)
 from shared.common.db_client import get_db_client
-import secrets
 
 # Setup logger
 logger = setup_logger(__name__)
+
+# Constants
+SERVICE_NAME = "auth-service"
+SERVICE_VERSION = "1.0.0"
 
 # Configuration
 SECRET_KEY = os.getenv("JWT_SECRET_KEY", secrets.token_urlsafe(32))
@@ -30,17 +38,11 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 app = FastAPI(
     title="Authentication Service",
     description="JWT authentication and user management",
-    version="1.0.0"
+    version=SERVICE_VERSION
 )
 
-# CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Setup middleware
+setup_cors_middleware(app)
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -110,17 +112,19 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)) 
         )
 
 
-@app.get("/health", response_model=HealthResponse)
+@app.get("/health")
 async def health_check():
     """Health check endpoint"""
+    from shared.common.models import HealthResponse
     return HealthResponse(
         status="healthy",
-        service="auth-service",
-        version="1.0.0"
+        service=SERVICE_NAME,
+        version=SERVICE_VERSION
     )
 
 
 @app.post("/register", response_model=User)
+@handle_service_errors(default_status=400)
 async def register(user: UserCreate):
     """Register new user"""
     db = get_db_client()
@@ -148,6 +152,7 @@ async def register(user: UserCreate):
 
 
 @app.post("/login", response_model=Token)
+@handle_service_errors(default_status=401)
 async def login(user: UserLogin):
     """Login and get JWT token"""
     db = get_db_client()

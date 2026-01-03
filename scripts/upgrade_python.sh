@@ -58,7 +58,7 @@ if [ $? -eq 0 ]; then
     python -c "import langgraph; print('LangGraph version:', langgraph.__version__)"
     python -c "import langsmith; print('LangSmith version:', langsmith.__version__)"
     echo ""
-    echo "🎉 Success! You can now run: streamlit run app.py"
+    echo "🎉 Success! You can now run: docker-compose up --build"
 else
     echo ""
     echo "❌ Installation failed. Please check the error messages above."
