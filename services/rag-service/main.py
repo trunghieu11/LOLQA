@@ -8,8 +8,14 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from shared.common import setup_logger, get_config, HealthResponse, RAGQueryRequest, RAGQueryResponse
+from shared.common import (
+    setup_logger,
+    get_config,
+    RAGQueryRequest,
+    RAGQueryResponse,
+    setup_cors_middleware,
+    handle_service_errors
+)
 from shared.common.config import RAGServiceConfig
 from rag_system import RAGServiceSystem
 from langchain_core.documents import Document
@@ -98,19 +104,14 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Setup middleware
+setup_cors_middleware(app)
 
 
-@app.get("/health", response_model=HealthResponse)
+@app.get("/health")
 async def health_check():
     """Health check endpoint"""
+    from shared.common.models import HealthResponse
     return HealthResponse(
         status="initializing" if rag_system is None else "healthy",
         service=SERVICE_NAME,
@@ -119,6 +120,7 @@ async def health_check():
 
 
 @app.post("/query", response_model=RAGQueryResponse)
+@handle_service_errors()
 async def query(request: RAGQueryRequest):
     """
     Process RAG query using LangGraph workflow.
@@ -135,42 +137,37 @@ async def query(request: RAGQueryRequest):
     if rag_system is None:
         await initialize_rag_system(raise_on_error=True)
     
-    try:
-        logger.info(f"Processing RAG query: {request.question[:50]}...")
-        
-        # Convert conversation history if provided
-        conversation_history = None
-        if request.conversation_history:
-            conversation_history = [
-                {"role": msg.role, "content": msg.content}
-                for msg in request.conversation_history
-            ]
-        
-        # Process query
-        answer = await rag_system.query(
-            question=request.question,
-            conversation_history=conversation_history,
-            k=request.k
-        )
-        
-        # Optionally get context documents
-        context = None
-        if request.k:
-            docs = await rag_system.get_relevant_documents(request.question, k=request.k)
-            context = format_documents(docs)
-        
-        return RAGQueryResponse(
-            answer=answer,
-            context=context
-        )
-    except HTTPException:
-        raise  # Re-raise HTTP exceptions
-    except Exception as e:
-        logger.error(f"Error processing RAG query: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+    logger.info(f"Processing RAG query: {request.question[:50]}...")
+    
+    # Convert conversation history if provided
+    conversation_history = None
+    if request.conversation_history:
+        conversation_history = [
+            {"role": msg.role, "content": msg.content}
+            for msg in request.conversation_history
+        ]
+    
+    # Process query
+    answer = await rag_system.query(
+        question=request.question,
+        conversation_history=conversation_history,
+        k=request.k
+    )
+    
+    # Optionally get context documents
+    context = None
+    if request.k:
+        docs = await rag_system.get_relevant_documents(request.question, k=request.k)
+        context = format_documents(docs)
+    
+    return RAGQueryResponse(
+        answer=answer,
+        context=context
+    )
 
 
 @app.post("/retrieve")
+@handle_service_errors()
 async def retrieve(question: str, k: int = 3):
     """
     Retrieve relevant documents only (no generation).
@@ -184,29 +181,18 @@ async def retrieve(question: str, k: int = 3):
     """
     check_rag_system_initialized()
     
-    try:
-        docs = await rag_system.get_relevant_documents(question, k=k)
-        return {"documents": format_documents(docs)}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error retrieving documents: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+    docs = await rag_system.get_relevant_documents(question, k=k)
+    return {"documents": format_documents(docs)}
 
 
 @app.get("/stats")
+@handle_service_errors()
 async def get_stats():
     """Get vector database statistics"""
     check_rag_system_initialized()
     
-    try:
-        stats = await rag_system.get_stats()
-        return stats
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error getting stats: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+    stats = await rag_system.get_stats()
+    return stats
 
 
 if __name__ == "__main__":

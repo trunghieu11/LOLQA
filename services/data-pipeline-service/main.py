@@ -1,7 +1,6 @@
 """Data Pipeline Service - Handles data collection, chunking, and vector DB ingestion"""
 import os
 import sys
-import time
 import uuid
 import asyncio
 from pathlib import Path
@@ -13,24 +12,20 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 from fastapi import FastAPI, HTTPException, Body
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
-from fastapi import Request
 from shared.common import (
     setup_logger,
     get_config,
-    HealthResponse,
     PipelineJobRequest,
-    PipelineJobResponse
+    PipelineJobResponse,
+    setup_cors_middleware,
+    setup_metrics_middleware,
+    handle_service_errors
 )
 from shared.common.config import DataPipelineConfig
 from shared.common.redis_client import RedisClient
 from shared.common.db_client import get_db_client
-from shared.common.metrics import (
-    get_metrics,
-    http_requests_total,
-    http_request_duration_seconds
-)
+from shared.common.metrics import get_metrics
 from pipeline import DataPipeline
 
 # Setup logger
@@ -119,40 +114,15 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Setup middleware
+setup_cors_middleware(app)
+setup_metrics_middleware(app)
 
 
-@app.middleware("http")
-async def metrics_middleware(request: Request, call_next):
-    """Middleware to track metrics"""
-    start_time = time.time()
-    response = await call_next(request)
-    duration = time.time() - start_time
-    
-    http_requests_total.labels(
-        method=request.method,
-        endpoint=request.url.path,
-        status=response.status_code
-    ).inc()
-    
-    http_request_duration_seconds.labels(
-        method=request.method,
-        endpoint=request.url.path
-    ).observe(duration)
-    
-    return response
-
-
-@app.get("/health", response_model=HealthResponse)
+@app.get("/health")
 async def health_check():
     """Health check endpoint"""
+    from shared.common.models import HealthResponse
     return HealthResponse(
         status="initializing" if pipeline is None else "healthy",
         service=SERVICE_NAME,
@@ -236,6 +206,7 @@ async def worker_process():
 
 
 @app.post("/ingest", response_model=PipelineJobResponse)
+@handle_service_errors()
 async def ingest_data(
     request: PipelineJobRequest = Body(default={})
 ):
@@ -254,47 +225,42 @@ async def ingest_data(
     Returns:
         Pipeline job response with job ID
     """
-    try:
-        job_id = str(uuid.uuid4())
-        
-        # Create job record in database
-        db_client.create_pipeline_job(job_id, "queued", "Job queued")
-        
-        # Add job to Redis queue (worker will process it)
-        success = redis_client.enqueue("pipeline_jobs", {
-            "job_id": job_id,
-            "sources": request.sources,
-            "force_refresh": request.force_refresh or False
-        })
-        
-        if not success:
-            # If Redis enqueue fails, mark job as failed
-            db_client.update_pipeline_job(
-                job_id,
-                "failed",
-                "Failed to enqueue job to Redis",
-                error="Redis enqueue failed"
-            )
-            raise HTTPException(
-                status_code=503,
-                detail="Failed to queue job. Redis may be unavailable."
-            )
-        
-        logger.info(f"Job {job_id} queued successfully in Redis")
-        
-        return PipelineJobResponse(
-            job_id=job_id,
-            status="queued",
-            message="Pipeline job queued successfully"
+    job_id = str(uuid.uuid4())
+    
+    # Create job record in database
+    db_client.create_pipeline_job(job_id, "queued", "Job queued")
+    
+    # Add job to Redis queue (worker will process it)
+    success = redis_client.enqueue("pipeline_jobs", {
+        "job_id": job_id,
+        "sources": request.sources,
+        "force_refresh": request.force_refresh or False
+    })
+    
+    if not success:
+        # If Redis enqueue fails, mark job as failed
+        db_client.update_pipeline_job(
+            job_id,
+            "failed",
+            "Failed to enqueue job to Redis",
+            error="Redis enqueue failed"
         )
-    except HTTPException:
-        raise  # Re-raise HTTP exceptions
-    except Exception as e:
-        logger.error(f"Error queuing pipeline job: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(
+            status_code=503,
+            detail="Failed to queue job. Redis may be unavailable."
+        )
+    
+    logger.info(f"Job {job_id} queued successfully in Redis")
+    
+    return PipelineJobResponse(
+        job_id=job_id,
+        status="queued",
+        message="Pipeline job queued successfully"
+    )
 
 
 @app.get("/status/{job_id}")
+@handle_service_errors(default_status=404)
 async def get_job_status(job_id: str):
     """Get status of a pipeline job"""
     job = db_client.get_pipeline_job(job_id)
