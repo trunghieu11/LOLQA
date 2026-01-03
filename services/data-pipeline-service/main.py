@@ -91,6 +91,39 @@ async def lifespan(app: FastAPI):
     # Start worker process as background task
     worker_task = asyncio.create_task(worker_process())
     logger.info("Pipeline worker process started")
+
+    # Auto-trigger ingestion if vector database is empty
+    if pipeline is not None:
+        try:
+            # Check if vector store is empty
+            stats = await pipeline.get_stats() if hasattr(pipeline, "get_stats") else None
+            total_docs = stats.get("total_documents", 0) if stats else 0
+
+            # Check directly from vectorstore if available
+            if pipeline.vectorstore:
+                collection = pipeline.vectorstore._collection
+                if hasattr(collection, "count"):
+                    total_docs = collection.count()
+
+            # If vector database is empty, trigger ingestion
+            if total_docs == 0:
+                logger.info("Vector database is empty. Auto-triggering initial data ingestion...")
+                job_id = str(uuid.uuid4())
+                db_client.create_pipeline_job(job_id, "queued", "Auto-triggered on startup")
+                
+                # Queue the job
+                redis_client.enqueue("pipeline_jobs", {
+                    "job_id": job_id,
+                    "sources": None,
+                    "force_refresh": False
+                })
+                logger.info(f"Auto-ingestion job {job_id} queued successfully in Redis")
+            else:
+                logger.info(f"Vector database contains {total_docs} documents")
+
+        except Exception as e:
+            logger.error(f"Error in auto-triggering ingestion: {e}", exc_info=True)
+            logger.warning("Auto-triggering ingestion failed, but service will start normally. You can manually trigger ingestion with /ingest endpoint.")
     
     yield
     
